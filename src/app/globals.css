@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "tw-animate-css";
+@import "tw-animate-css/dist/tw-animate.css";
 
 /* 確保中文字體正確載入 */
 @layer base {
