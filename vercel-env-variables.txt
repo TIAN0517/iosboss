@@ -13,8 +13,8 @@ SUPABASE_ACCESS_TOKEN=sbp_a083055ee9dd7750eb7b2c34026eb56b0bed294c
 # ========================================
 # GLM AI 配置（AI 功能必需）
 # ========================================
-GLM_API_KEYS=vck_5Lx3SCRblaY5n3zXpwcWHmqU6ZcA4KWUKJzVAmz2cRuZbVOQ5J2Yxcxn
-GLM_API_KEY=vck_5Lx3SCRblaY5n3zXpwcWHmqU6ZcA4KWUKJzVAmz2cRuZbVOQ5J2Yxcxn
+GLM_API_KEYS=vck_3RYHqfuEfwhBaMXOAKRuwjr6dI5gHlG5N5cfeNffLy84RnvYu12kLjgW
+GLM_API_KEY=vck_3RYHqfuEfwhBaMXOAKRuwjr6dI5gHlG5N5cfeNffLy84RnvYu12kLjgW
 GLM_MODEL=glm-4.7-coding-max
 GLM_ENABLE_STREAMING=true
 GLM_TIMEOUT=60000
