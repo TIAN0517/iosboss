@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 9999 2>&1 | tee dev.log",
-    "build": "next build && node copy-assets.js",
+    "build": "prisma generate && next build",
+    "build:standalone": "next build && node copy-assets.js",
     "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "db:push": "prisma db push",
@@ -89,11 +90,11 @@
     "xlsx": "^0.18.5",
     "z-ai-web-dev-sdk": "^0.0.15",
     "zod": "^4.0.2",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.6",
+    "@tailwindcss/postcss": "^4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
