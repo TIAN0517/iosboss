@@ -1,0 +1,25 @@
+            id             |         productId         | quantity | minStock |        updatedAt        
+---------------------------+---------------------------+----------+----------+-------------------------
+ cmjqq3ya30008pf016e694qsb | cmjqq3y9x0006pf01s8k7hfef |        0 |       10 | 2025-12-29 05:34:09.484
+ cmjqq3yad000cpf01clkp64iv | cmjqq3ya9000apf019rruzlh3 |        0 |       10 | 2025-12-29 05:34:09.493
+ cmjqq3yal000gpf01g7ccjq9y | cmjqq3yag000epf01hwcbbluu |        0 |       10 | 2025-12-29 05:34:09.502
+ cmjqq3yas000kpf01zv0cgk9a | cmjqq3yap000ipf01nvaszigi |        0 |       10 | 2025-12-29 05:34:09.509
+ cmjqq3yb1000opf01v5g2gxt6 | cmjqq3yav000mpf01qvt69u04 |        0 |       10 | 2025-12-29 05:34:09.517
+ cmjqq3yb9000spf01myyqnl5y | cmjqq3yb5000qpf01ujzz3266 |        0 |       10 | 2025-12-29 05:34:09.525
+ cmjqq3ybh000wpf01e4im1s7t | cmjqq3ybc000upf01m2e48dfu |        0 |        5 | 2025-12-29 05:34:09.533
+ cmjqq3ybp0010pf01e3dmvjaq | cmjqq3ybl000ypf01u3suct07 |        0 |        5 | 2025-12-29 05:34:09.541
+ cmjqq3yby0014pf01awioslau | cmjqq3ybu0012pf01nnvlcaee |        0 |        5 | 2025-12-29 05:34:09.55
+ cmjqq3yc60018pf01t4jyxyqp | cmjqq3yc20016pf01u8vv75v6 |        0 |        5 | 2025-12-29 05:34:09.558
+ cmjqq3ycf001cpf01olbi4q0e | cmjqq3ycb001apf019vm7ikkd |        0 |        5 | 2025-12-29 05:34:09.567
+ cmjqq3ycn001gpf01jvsit59k | cmjqq3ycj001epf01dkmr9bxm |        0 |        5 | 2025-12-29 05:34:09.575
+ cmjqq3ycw001kpf012x8o0czc | cmjqq3ycr001ipf01gb87dazy |        0 |        3 | 2025-12-29 05:34:09.584
+ cmjqq3yd3001opf0192nleay1 | cmjqq3ycz001mpf01eq2t8zv0 |        0 |        3 | 2025-12-29 05:34:09.591
+ cmjqq3ydb001spf01lxiu7l9d | cmjqq3yd7001qpf01piiyp3v6 |        0 |        3 | 2025-12-29 05:34:09.599
+ cmjqq3ydi001wpf01zotdsuyv | cmjqq3ydf001upf01ovxjs6rs |        0 |        3 | 2025-12-29 05:34:09.606
+ cmjqq3ydr0020pf012izvrpzn | cmjqq3ydn001ypf01haan6ma0 |        0 |        3 | 2025-12-29 05:34:09.615
+ cmjqq3ydz0024pf0150qxikb2 | cmjqq3ydv0022pf012kx04d90 |        0 |        3 | 2025-12-29 05:34:09.623
+ cmjqq3ye60028pf015riw2v1s | cmjqq3ye20026pf01o78iho97 |        0 |       20 | 2025-12-29 05:34:09.63
+ cmjqq3yef002cpf01adnv0jkq | cmjqq3yea002apf01pfaftkf6 |        0 |       20 | 2025-12-29 05:34:09.639
+ cmjqq3yet002gpf01o2mey1v7 | cmjqq3yel002epf01ofwjxmoq |        0 |       20 | 2025-12-29 05:34:09.653
+(21 rows)
+

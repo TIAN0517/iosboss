@@ -1,0 +1,26 @@
+# Vercel 環境變數配置清單
+# 請將以下所有變數添加到 Vercel Dashboard → 專案設置 → Environment Variables
+
+# ========================================
+# Supabase 配置（必需）
+# ========================================
+NEXT_PUBLIC_SUPABASE_URL=https://mdmltksbpdyndoisnqhy.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_3p1ly5-SPsrI5178yr7Qjg_i7OBKEJQ
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=sb_secret_PloQCSW91a11td9_ejkaEQ_2faT0bs2
+SUPABASE_JWT_SECRET=JFOZVsXpgi6kShGdzmrrNP80yNKUuA9YTCIjsK+gY5ZZcYItaQt9asmRJxXbjhyuK+CMZn7bAEnaJYBT92orEQ==
+SUPABASE_ACCESS_TOKEN=sbp_a083055ee9dd7750eb7b2c34026eb56b0bed294c
+
+# ========================================
+# GLM AI 配置（AI 功能必需）
+# ========================================
+GLM_API_KEYS=vck_5Lx3SCRblaY5n3zXpwcWHmqU6ZcA4KWUKJzVAmz2cRuZbVOQ5J2Yxcxn
+GLM_API_KEY=vck_5Lx3SCRblaY5n3zXpwcWHmqU6ZcA4KWUKJzVAmz2cRuZbVOQ5J2Yxcxn
+GLM_MODEL=glm-4.7-coding-max
+GLM_ENABLE_STREAMING=true
+GLM_TIMEOUT=60000
+
+# ========================================
+# 系統配置（可選）
+# ========================================
+NODE_ENV=production
+NEXT_TELEMETRY_DISABLED=1
