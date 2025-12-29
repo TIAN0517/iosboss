@@ -1,0 +1,86 @@
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# local files (security sensitive)
+local-*
+.claude
+.z-ai-config
+dev.log
+test
+prompt
+server.log
+
+# database backups
+backups/*.sql
+!backups/migration/.gitkeep
+
+# logs
+logs/*.log
+error.log
+server.log
+dev.log
+
+# temp files
+nul
+*.tmp
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.iml
+
+# certificates
+certs/*
+!certs/.gitkeep
+
+# scripts temp
+scripts/temp/
+
+# docker volumes
+docker-volumes/
+
+# backup files (except migration scripts)
+*.sql
+!db/init/01-init.sql

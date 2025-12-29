@@ -1,0 +1,51 @@
+# ========================================
+# Cloudflare Tunnel 設定 - 支援多域名
+# 九九瓦斯行管理系統 - 持久型隧道
+# ========================================
+
+# 定義隧道路由規則
+ingress:
+  # ========================================
+  # LINE Bot Webhook (優先處理)
+  # ========================================
+  - hostname: linebot.jytian.it.com
+    service: http://jyt-gas-nginx:80
+    # Docker 內部網路：nginx 容器的 80 port
+    originRequest:
+      http2Origin: true
+      noTLSVerify: false
+      connectTimeout: 30s
+      tcpKeepAlive: 30s
+      keepAliveConnections: 100
+      keepAliveTimeout: 90s
+
+  # ========================================
+  # 主應用路由
+  # ========================================
+  - hostname: bossai.jytian.it.com
+    service: http://jyt-gas-nginx:80
+    # Docker 內部網路：nginx 容器的 80 port
+    originRequest:
+      http2Origin: true
+      noTLSVerify: false
+      connectTimeout: 30s
+      tcpKeepAlive: 30s
+      keepAliveConnections: 100
+      keepAliveTimeout: 90s
+
+  # ========================================
+  # 默認規則：拒絕其他流量
+  # ========================================
+  - service: http_status:404
+
+# ========================================
+# 網路設定
+# ========================================
+ipVersion: "4"  # 只使用 IPv4
+
+# ========================================
+# 指標與日誌
+# ========================================
+metrics: 0.0.0.0:2000
+no-autoupdate: true  # 禁用自動更新，使用 Docker 映像版本控制
+loglevel: info

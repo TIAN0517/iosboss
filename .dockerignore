@@ -1,0 +1,86 @@
+# ========================================
+# 九九瓦斯行管理系統 - Docker 忽略規則
+# ========================================
+
+# 依賴
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.lockb
+.pnpm-store/
+
+# 建置輸出
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# 測試覆蓋率
+coverage/
+.nyc_output/
+
+# 環境變量（使用 .env.docker 範本）
+.env
+.env*.local
+.env.development
+.env.production
+
+# 版本控制
+.git/
+.gitignore
+.gitattributes
+
+# IDE 設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 文檔
+*.md
+LICENSE
+README_99GAS.md
+CLAUDE.md
+
+# Docker 相關
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 日誌
+*.log
+logs/
+
+# 備份
+backups/
+
+# 數據庫
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+# 注意：不要排除 prisma/migrations/，遷移文件需要在容器中
+
+# 暫存文件
+.cache/
+.parcel-cache/
+tmp/
+temp/
+
+# 部署相關
+.vercel/
+.netlify/
+
+# PM2 配置
+ecosystem.config.js
+
+# Caddy 配置
+Caddyfile
+
+# Windows 相關
+Thumbs.db
+desktop.ini

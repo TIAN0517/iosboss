@@ -1,0 +1,562 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  username       String           @unique
+  password       String
+  email          String           @unique
+  name           String?
+  role           String           @default("staff")
+  phone          String?
+  department     String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  costRecords    CostRecord[]
+  deliveries     DeliveryRecord[]
+  orders         GasOrder[]
+  driverLocations DriverLocation[]
+  dispatchedOrders DispatchRecord[]
+}
+
+model Customer {
+  id                String             @id @default(cuid())
+  name              String
+  phone             String
+  address           String
+  groupId           String?
+  paymentType       String             @default("cash")
+  note              String?
+  balance           Float              @default(0)
+  creditLimit       Float              @default(0)
+  lastOrderAt       DateTime?
+  lastMeterReadAt   DateTime?
+  lineUserId        String?            @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  calls             CallRecord[]       @relation("CustomerCallRecord")
+  checks            Check[]
+  group             CustomerGroup?     @relation(fields: [groupId], references: [id])
+  deliveries        DeliveryRecord[]
+  orders            GasOrder[]
+  meterReadings     MeterReading[]
+  monthlyStatements MonthlyStatement[] @relation("CustomerMonthlyStatement")
+  extra             CustomerExtra?
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[] @relation("CategoryProducts")
+}
+
+model Product {
+  id          String                 @id @default(cuid())
+  categoryId  String
+  name        String
+  code        String?
+  price       Float
+  cost        Float
+  capacity    String?
+  unit        String                 @default("個")
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  orders      GasOrderItem[]
+  inventory   Inventory?
+  inventoryTx InventoryTransaction[]
+  alerts      InventoryAlert[]
+  category    ProductCategory        @relation("CategoryProducts", fields: [categoryId], references: [id])
+}
+
+model Inventory {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  quantity  Int      @default(0)
+  minStock  Int      @default(10)
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model InventoryTransaction {
+  id             String   @id @default(cuid())
+  productId      String
+  type           String
+  quantity       Int
+  quantityBefore Int
+  quantityAfter  Int
+  reason         String?
+  createdAt      DateTime @default(now())
+  product        Product  @relation(fields: [productId], references: [id])
+}
+
+model CustomerGroup {
+  id          String     @id @default(cuid())
+  name        String
+  discount    Float      @default(0)
+  creditTerm  Int?
+  description String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  customers   Customer[]
+}
+
+model GasOrder {
+  id             String          @id @default(cuid())
+  customerId     String
+  orderNo        String          @unique
+  orderDate      DateTime        @default(now())
+  deliveryDate   DateTime?
+  completedAt    DateTime?       // 完成時間
+  status         String          @default("pending")
+  subtotal       Float
+  discount       Float           @default(0)
+  deliveryFee    Float           @default(0)
+  total          Float
+  paidAmount     Float           @default(0)
+  note           String?
+  checkId        String?         @unique
+  driverId       String?
+  deliveryNumber String?         @unique // 配送單號 DN202412270001
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  delivery       DeliveryRecord? @relation("DeliveryRecordOrder")
+  check          Check?          @relation(fields: [checkId], references: [id])
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  driver         User?           @relation(fields: [driverId], references: [id])
+  items          GasOrderItem[]
+
+  @@index([deliveryNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model GasOrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+  order     GasOrder @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model MeterReading {
+  id              String   @id @default(cuid())
+  customerId      String
+  previousReading Float    @default(0)
+  currentReading  Float    @default(0)
+  usage           Float    @default(0)
+  unitPrice       Float
+  amount          Float
+  periodStart     DateTime
+  periodEnd       DateTime
+  readingDate     DateTime @default(now())
+  note            String?
+  createdAt       DateTime @default(now())
+  customer        Customer @relation(fields: [customerId], references: [id])
+}
+
+model Check {
+  id         String    @id @default(cuid())
+  customerId String?
+  orderId    String?   @unique
+  checkNo    String    @unique
+  bankName   String
+  checkDate  DateTime
+  amount     Float
+  status     String    @default("pending")
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  order      GasOrder?
+}
+
+model DeliveryRecord {
+  id           String    @id @default(cuid())
+  orderId      String?   @unique
+  customerId   String
+  driverId     String?
+  status       String    @default("pending")
+  deliveryDate DateTime  @default(now())
+  completedAt  DateTime?
+  signature    String?
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  driver       User?     @relation(fields: [driverId], references: [id])
+  order        GasOrder? @relation("DeliveryRecordOrder", fields: [orderId], references: [id])
+}
+
+model Promotion {
+  id            String   @id @default(cuid())
+  name          String
+  type          String
+  discountValue Float    @default(0)
+  minAmount     Float?
+  startDate     DateTime
+  endDate       DateTime
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CostRecord {
+  id             String     @id @default(cuid())
+  type           String
+  category       String
+  amount         Float
+  description    String
+  date           DateTime   @default(now())
+  recordedBy     String?
+  createdAt      DateTime   @default(now())
+  items          CostItem[]
+  recordedByUser User?      @relation(fields: [recordedBy], references: [id])
+}
+
+model CostItem {
+  id           String     @id @default(cuid())
+  costRecordId String
+  item         String
+  quantity     Int?
+  unitPrice    Float
+  subtotal     Float
+  costRecord   CostRecord @relation(fields: [costRecordId], references: [id])
+}
+
+model CallRecord {
+  id          String    @id @default(cuid())
+  customerId  String?
+  phoneNumber String
+  callTime    DateTime  @default(now())
+  duration    Int       @default(0)
+  status      String    @default("missed")
+  notes       String?
+  createdAt   DateTime  @default(now())
+  customer    Customer? @relation("CustomerCallRecord", fields: [customerId], references: [id])
+}
+
+model AccountingSync {
+  id           String   @id @default(cuid())
+  syncType     String
+  recordId     String
+  syncDate     DateTime @default(now())
+  status       String   @default("pending")
+  errorMessage String?
+  systemId     String?  // 關聯到外部系統
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 外部系統整合配置
+model ExternalSystem {
+  id          String   @id @default(cuid())
+  name        String   // 系統名稱，如「會計系統」、「ERP系統」
+  description String?  // 系統描述
+  webhookUrl  String   // Webhook URL
+  apiKey      String?  // API Key
+  apiSecret   String?  // API Secret (用於簽名)
+  isActive    Boolean  @default(true)
+  events      String[] // 訂閱的事件類型
+  headers     Json?    // 自定義 headers
+  retryCount  Int      @default(3)
+  timeout     Int      @default(30000)
+  lastSyncAt  DateTime?
+  lastStatus  String?  // 最後同步狀態
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// Webhook 發送日誌
+model WebhookLog {
+  id          String   @id @default(cuid())
+  systemId    String   // 關聯到外部系統
+  eventType   String   // 事件類型
+  recordId    String   // 記錄 ID
+  payload     Json     // 發送的 payload
+  statusCode  Int?     // HTTP 狀態碼
+  response    String?  // 響應內容
+  status      String   // success/failed
+  errorMessage String?
+  duration    Int?     // 請求耗時 (ms)
+  retried     Boolean  @default(false)
+  retryCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([systemId])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MonthlyStatement {
+  id          String   @id @default(cuid())
+  customerId  String
+  month       String
+  periodStart DateTime
+  periodEnd   DateTime
+  totalOrders Int      @default(0)
+  totalAmount Float    @default(0)
+  paidAmount  Float    @default(0)
+  balance     Float    @default(0)
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  customer    Customer @relation("CustomerMonthlyStatement", fields: [customerId], references: [id])
+}
+
+model CustomerExtra {
+  id             String    @id @default(cuid())
+  customerId     String    @unique
+  contactPerson  String?
+  fax            String?
+  email          String?
+  taxId          String?
+  billingAddress String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  customer       Customer  @relation(fields: [customerId], references: [id])
+}
+
+model LineGroup {
+  id             String        @id @default(cuid())
+  groupId        String        @unique
+  groupName      String
+  groupType      String
+  permissions    String[]
+  isActive       Boolean       @default(true)
+  memberCount    Int?
+  description    String?
+  lastMessageAt  DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  messages       LineMessage[]
+}
+
+model LineMessage {
+  id          String     @id @default(cuid())
+  lineGroupId String?
+  userId      String?
+  messageType String
+  content     String
+  intent      String?
+  response    String?
+  timestamp   DateTime   @default(now())
+  lineGroup   LineGroup? @relation(fields: [lineGroupId], references: [id])
+
+  @@index([lineGroupId])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model LineConversation {
+  id           String   @id @default(cuid())
+  lineUserId   String
+  groupId      String?
+  context      String   @default("{}")
+  lastMessage  String?
+  messageCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([lineUserId])
+  @@index([groupId])
+}
+
+// ==================== 审计日志模型 ====================
+// 企业级审计追踪系统 - 记录所有关键操作
+
+model AuditLog {
+  id         String   @id
+  userId     String?
+  username   String?
+  action     String   // create, update, delete, login, logout, etc.
+  entityType String   // User, Customer, Order, Product, etc.
+  entityId   String
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  timestamp  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@index([entityType, timestamp])
+}
+
+// ==================== 車隊配送管理模型 ====================
+
+// 司機位置追蹤
+model DriverLocation {
+  id        String   @id @default(cuid())
+  driverId  String
+  latitude  Float
+  longitude Float
+  accuracy  Float?   // GPS 精度（米）
+  speed     Float?   // 速度（km/h）
+  heading   Float?   // 方向（度 0-359）
+  address   String?  // 反地理編碼地址
+  note      String?  // 司機備註（如：休息中、用餐中）
+  createdAt DateTime @default(now())
+
+  driver User @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([createdAt])
+  @@map("driver_locations")
+}
+
+// 派單記錄
+model DispatchRecord {
+  id          String    @id @default(cuid())
+  orderId     String    // 關聯訂單 ID
+  driverId    String    // 派發給的司機
+  status      String    @default("pending") // pending, accepted, rejected, on_way, arrived, completed, cancelled
+  dispatchedAt DateTime  @default(now())
+  acceptedAt  DateTime?
+  arrivedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  note        String?   // 派單備註
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  driver User @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, driverId])
+  @@index([driverId])
+  @@index([orderId])
+  @@index([status])
+  @@map("dispatch_records")
+}
+
+// ==================== 數據同步模型 ====================
+
+// 同步變更記錄
+model SyncChange {
+  id         String   @id @default(cuid())
+  tableName  String   // 表名：customers, orders, products 等
+  recordId   String   // 記錄 ID
+  operation  String   // 操作類型：CREATE, UPDATE, DELETE
+  recordData Json     // 記錄數據（JSON 格式）
+  timestamp  DateTime @default(now())
+  synced     Boolean  @default(false)
+  syncedAt   DateTime?
+  error      String?  // 同步錯誤信息
+
+  @@index([synced])
+  @@index([tableName])
+  @@index([timestamp])
+  @@map("sync_changes")
+}
+
+// 同步狀態
+model SyncStatus {
+  id            String   @id @default(cuid())
+  lastSyncAt    DateTime?
+  syncCount     Int      @default(0)
+  pendingCount   Int      @default(0)
+  errorCount    Int      @default(0)
+  status        String   @default("idle") // idle, syncing, error
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("sync_status")
+}
+
+// ==================== 庫存警告模型 ====================
+
+// 庫存警告記錄
+model InventoryAlert {
+  id         String   @id @default(cuid())
+  productId  String
+  quantity   Int      // 當前庫存量
+  alertLevel Int      // 警告線
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([resolved])
+  @@map("inventory_alerts")
+}
+
+// ==================== 休假表模型 ====================
+
+// 休假表主表
+model ScheduleSheet {
+  id        String   @id @default(cuid())
+  year      Int      // 西元年份
+  month     Int      // 月份 1-12
+  title     String   // 標題（如：2025年1月休假表）
+  rawText   String   @db.Text // 原始文本
+  status    String   @default("pending") // pending, approved, rejected
+  submittedBy String? // 提交者 LINE User ID
+  reviewedBy String? // 審核者 User ID
+  submittedAt DateTime @default(now())
+  reviewedAt   DateTime?
+  note      String?  // 備註
+
+  stations  ScheduleStation[]
+
+  @@unique([year, month])
+  @@index([status])
+  @@index([submittedAt])
+  @@map("schedule_sheets")
+}
+
+// 站點休假表
+model ScheduleStation {
+  id          String   @id @default(cuid())
+  sheetId     String
+  stationName String   // 站點名稱（如：吉安、美崙）
+
+  sheet       ScheduleSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  employees   EmployeeSchedule[]
+
+  @@index([sheetId])
+  @@map("schedule_stations")
+}
+
+// 員工休假記錄
+model EmployeeSchedule {
+  id           String   @id @default(cuid())
+  stationId    String
+  employeeName String   // 員工姓名
+  scheduleDate DateTime // 休假日期
+  displayDate  String   // 顯示日期（如：12/12）
+  isHalfDay    Boolean  @default(false) // 是否為半天
+  isMorning    Boolean  @default(true)  // 半天時：true=上午, false=下午
+  note         String?  // 備註
+
+  station      ScheduleStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([scheduleDate])
+  @@index([employeeName])
+  @@map("employee_schedules")
+}
