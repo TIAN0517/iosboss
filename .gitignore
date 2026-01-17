@@ -88,3 +88,21 @@ docker-volumes/
 # large executable files (should not be in git)
 *.exe
 *.msi
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Python virtual environment
+line_bot_ai/venv/
+**/venv/
+**/env/
+**/.venv/
+
+# Docker installers
+Docker-Desktop-Installer.exe
+caddy.exe
+caddy.zip
+gas-management.zip
+cloudflared.exe
