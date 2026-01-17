@@ -1,10 +1,13 @@
 /**
  * BossJy-99 統一 AI 提供商管理層
  * 支持多個 AI 提供商和模型切換
- * 
+ *
  * 支持的提供商：
  * - GLM 商業版 (Coding Max) - 完整高級功能
  * - GLM 原生版 - 基礎功能
+ * - Ollama 本地模型 - 免費本地運行
+ * - Kimi AI (Moonshot) - 選配
+ * - Groq API - 超快速推理，選配
  * - OpenAI - 佔位符，未實現
  */
 
@@ -389,7 +392,10 @@ class OllamaProvider implements AIProvider {
   }
 
   isAvailable(): boolean {
-    return !!this.config.apiKey && this.config.apiKey.length > 10;
+    // 本地 Ollama（localhost:11434）不需要 API Key
+    // 雲端 Ollama API 需要 API Key
+    const isLocalOllama = this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1');
+    return isLocalOllama || (!!this.config.apiKey && this.config.apiKey.length > 10);
   }
 
   getName(): string {
@@ -397,7 +403,7 @@ class OllamaProvider implements AIProvider {
   }
 
   async chat(message: string, history?: ChatMessage[]): Promise<ChatResponse> {
-    if (!this.isAvailable()) throw new Error('Ollama API Key 未配置');
+    if (!this.isAvailable()) throw new Error('Ollama 不可用');
 
     const messages: any[] = [
       { role: 'system', content: SYSTEM_PROMPTS.chat },
@@ -406,19 +412,38 @@ class OllamaProvider implements AIProvider {
     ];
 
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      // 本地 Ollama 使用 /api/chat 端點
+      const isLocalOllama = this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1');
+      const endpoint = isLocalOllama ? '/api/chat' : '/chat/completions';
+      const url = this.baseUrl.endsWith('/') ? this.baseUrl + 'api/chat' : `${this.baseUrl}/api/chat`;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // 雲端 Ollama 需要 Authorization header
+      if (!isLocalOllama && this.config.apiKey) {
+        headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      }
+
+      const body = isLocalOllama
+        ? {
+            model: this.config.model,
+            messages,
+            stream: false,
+          }
+        : {
+            model: this.config.model,
+            messages,
+            stream: false,
+            temperature: 0.8,
+            max_tokens: 2000,
+          };
+
+      const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.config.model,
-          messages,
-          stream: false,
-          temperature: 0.8,
-          max_tokens: 2000,
-        }),
+        headers,
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(this.config.timeout),
       });
 
@@ -428,15 +453,15 @@ class OllamaProvider implements AIProvider {
       }
 
       const data = await response.json();
-      const choice = data.choices?.[0];
-      const content = choice?.message?.content || '';
-      const reasoning = choice?.message?.reasoning; // Ollama 可能返回推理內容
+
+      // 本地 Ollama 返回格式：{ message: { content: "..." } }
+      // 雲端 Ollama 返回格式：{ choices: [{ message: { content: "..." } }] }
+      const content = data.message?.content || data.choices?.[0]?.message?.content || '';
 
       return {
         content,
         model: data.model || this.config.model,
         usage: data.usage,
-        reasoning_content: reasoning,
       };
     } catch (error: any) {
       console.error('[Ollama Provider] Chat error:', error);
@@ -445,7 +470,7 @@ class OllamaProvider implements AIProvider {
   }
 
   async *chatStream(message: string, history?: ChatMessage[]): AsyncGenerator<StreamChunk> {
-    if (!this.isAvailable()) throw new Error('Ollama API Key 未配置');
+    if (!this.isAvailable()) throw new Error('Ollama 不可用');
 
     const messages: any[] = [
       { role: 'system', content: SYSTEM_PROMPTS.chat },
@@ -454,18 +479,29 @@ class OllamaProvider implements AIProvider {
     ];
 
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      // 本地 Ollama 使用 /api/chat 端點
+      const isLocalOllama = this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1');
+      const url = this.baseUrl.endsWith('/') ? this.baseUrl + 'api/chat' : `${this.baseUrl}/api/chat`;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // 雲端 Ollama 需要 Authorization header
+      if (!isLocalOllama && this.config.apiKey) {
+        headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      }
+
+      const body = {
+        model: this.config.model,
+        messages,
+        stream: true,
+      };
+
+      const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.config.model,
-          messages,
-          stream: true,
-          temperature: 0.8,
-        }),
+        headers,
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(this.config.timeout),
       });
 
@@ -485,24 +521,24 @@ class OllamaProvider implements AIProvider {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
+
+        // 本地 Ollama 返回多個 JSON 對象，每個一行
+        // 格式：{"model":"...","created_at":"...","message":{"role":"assistant","content":"..."},"done":false}
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          if (line.trim() === 'data: [DONE]') {
-            yield { type: 'done', done: true };
-            return;
-          }
+          if (!line.trim()) continue;
 
           try {
-            const data = JSON.parse(line.slice(5));
-            const delta = data.choices?.[0]?.delta?.content || '';
-            if (delta) yield { type: 'content', text: delta };
-            
-            // 處理推理內容（如果有）
-            const reasoning = data.choices?.[0]?.delta?.reasoning;
-            if (reasoning) yield { type: 'thinking', text: reasoning };
+            const data = JSON.parse(line);
+            const content = data.message?.content || '';
+            if (content) yield { type: 'content', text: content };
+
+            if (data.done) {
+              yield { type: 'done', done: true };
+              return;
+            }
           } catch (e) {
             // 忽略解析錯誤
           }
@@ -611,15 +647,334 @@ class OriginalGLMProvider implements AIProvider {
 }
 
 // ========================================
+// Kimi AI Provider (Moonshot API)
+// ========================================
+
+interface KimiConfig {
+  apiKey: string;
+  model?: string;
+  baseUrl?: string;
+  enableStreaming?: boolean;
+  timeout?: number;
+}
+
+class KimiProvider implements AIProvider {
+  private config: Required<KimiConfig>;
+
+  constructor(config: KimiConfig) {
+    this.config = {
+      apiKey: config.apiKey,
+      model: config.model || 'kimi-k2-thinking-turbo',
+      baseUrl: config.baseUrl || 'https://api.moonshot.cn/v1',
+      enableStreaming: config.enableStreaming ?? true,
+      timeout: config.timeout || 60000,
+    };
+    console.log(`[KimiProvider] 已初始化，模型: ${this.config.model}`);
+  }
+
+  isAvailable(): boolean {
+    return !!this.config.apiKey && this.config.apiKey.length > 10;
+  }
+
+  getName(): string {
+    return `Kimi AI (${this.config.model})`;
+  }
+
+  async chat(message: string, history?: ChatMessage[]): Promise<ChatResponse> {
+    if (!this.isAvailable()) throw new Error('Kimi API Key 未配置');
+
+    const messages: any[] = [
+      { role: 'system', content: SYSTEM_PROMPTS.chat },
+      ...(history?.slice(-10) || []).map(msg => ({ role: msg.role, content: msg.content })),
+      { role: 'user', content: message },
+    ];
+
+    try {
+      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.config.model,
+          messages,
+          stream: false,
+          temperature: 0.8,
+          max_tokens: 2000,
+        }),
+        signal: AbortSignal.timeout(this.config.timeout),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+
+      return {
+        content,
+        model: data.model || this.config.model,
+        usage: data.usage,
+      };
+    } catch (error: any) {
+      console.error('[KimiProvider] API error:', error);
+      throw error;
+    }
+  }
+
+  async *chatStream(message: string, history?: ChatMessage[]): AsyncGenerator<StreamChunk> {
+    if (!this.isAvailable()) throw new Error('Kimi API Key 未配置');
+
+    const messages: any[] = [
+      { role: 'system', content: SYSTEM_PROMPTS.chat },
+      ...(history?.slice(-10) || []).map(msg => ({ role: msg.role, content: msg.content })),
+      { role: 'user', content: message },
+    ];
+
+    try {
+      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.config.model,
+          messages,
+          stream: true,
+          temperature: 0.8,
+        }),
+        signal: AbortSignal.timeout(this.config.timeout),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Kimi API error: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('無法獲取 response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              yield { type: 'done', done: true };
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                yield { type: 'content', text: content };
+              }
+            } catch (e) {
+              // 忽略解析錯誤
+            }
+          }
+        }
+      }
+
+      yield { type: 'done', done: true };
+    } catch (error: any) {
+      console.error('[KimiProvider] Stream error:', error);
+      yield { type: 'error', text: error.message };
+    }
+  }
+}
+
+// ========================================
+// Groq API Provider (超快速推理)
+// ========================================
+
+interface GroqConfig {
+  apiKey: string;
+  model?: string;
+  baseUrl?: string;
+  enableStreaming?: boolean;
+  timeout?: number;
+}
+
+class GroqProvider implements AIProvider {
+  private config: Required<GroqConfig>;
+
+  constructor(config: GroqConfig) {
+    this.config = {
+      apiKey: config.apiKey,
+      model: config.model || 'llama-3.3-70b-versatile',
+      baseUrl: config.baseUrl || 'https://api.groq.com/openai/v1',
+      enableStreaming: config.enableStreaming ?? true,
+      timeout: config.timeout || 30000, // Groq 很快，默認 30 秒
+    };
+    console.log(`[GroqProvider] 已初始化，模型: ${this.config.model}`);
+  }
+
+  isAvailable(): boolean {
+    return !!this.config.apiKey && this.config.apiKey.length > 10;
+  }
+
+  getName(): string {
+    return `Groq (${this.config.model})`;
+  }
+
+  async chat(message: string, history?: ChatMessage[]): Promise<ChatResponse> {
+    if (!this.isAvailable()) throw new Error('Groq API Key 未配置');
+
+    const messages: any[] = [
+      { role: 'system', content: SYSTEM_PROMPTS.chat },
+      ...(history?.slice(-10) || []).map(msg => ({ role: msg.role, content: msg.content })),
+      { role: 'user', content: message },
+    ];
+
+    try {
+      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.config.model,
+          messages,
+          stream: false,
+          temperature: 0.8,
+          max_tokens: 2000,
+        }),
+        signal: AbortSignal.timeout(this.config.timeout),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+
+      return {
+        content,
+        model: data.model || this.config.model,
+        usage: data.usage,
+      };
+    } catch (error: any) {
+      console.error('[GroqProvider] API error:', error);
+      throw error;
+    }
+  }
+
+  async *chatStream(message: string, history?: ChatMessage[]): AsyncGenerator<StreamChunk> {
+    if (!this.isAvailable()) throw new Error('Groq API Key 未配置');
+
+    const messages: any[] = [
+      { role: 'system', content: SYSTEM_PROMPTS.chat },
+      ...(history?.slice(-10) || []).map(msg => ({ role: msg.role, content: msg.content })),
+      { role: 'user', content: message },
+    ];
+
+    try {
+      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.config.model,
+          messages,
+          stream: true,
+          temperature: 0.8,
+        }),
+        signal: AbortSignal.timeout(this.config.timeout),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('無法獲取 response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              yield { type: 'done', done: true };
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                yield { type: 'content', text: content };
+              }
+            } catch (e) {
+              // 忽略解析錯誤
+            }
+          }
+        }
+      }
+
+      yield { type: 'done', done: true };
+    } catch (error: any) {
+      console.error('[GroqProvider] Stream error:', error);
+      yield { type: 'error', text: error.message };
+    }
+  }
+}
+
+// ========================================
 // 統一 AI 提供商管理層
 // ========================================
 
 class UnifiedAIProvider {
   private provider: AIProvider | null = null;
-  private providerType: 'glm-commercials' | 'glm-original' | 'openai' | 'ollama' = 'glm-commercials';
+  private providerType: 'glm-commercials' | 'glm-original' | 'openai' | 'ollama' | 'kimi' | 'groq' = 'ollama';
+  private currentModel: string | null = null; // 當前選擇的模型
 
   constructor() {
     this.initializeProvider();
+  }
+
+  /**
+   * 設置當前模型（用於動態切換）
+   */
+  setModel(model: string): void {
+    this.currentModel = model;
+    console.log('[統一 AI 提供商] 設置模型:', model);
+    this.initializeProvider();
+  }
+
+  /**
+   * 獲取當前模型
+   */
+  getCurrentModel(): string | null {
+    return this.currentModel;
   }
 
   /**
@@ -643,6 +998,22 @@ class UnifiedAIProvider {
           apiKeys = [process.env.OLLAMA_API_KEY];
         }
         console.log(`[統一 AI 提供商] 已初始化 Ollama: ${apiKeys.length > 0 ? '已配置' : '未配置'}`);
+        break;
+
+      case 'kimi':
+        // Kimi AI - 單個 Key
+        if (process.env.KIMI_API_KEY) {
+          apiKeys = [process.env.KIMI_API_KEY];
+        }
+        console.log(`[統一 AI 提供商] 已初始化 Kimi AI: ${apiKeys.length > 0 ? '已配置' : '未配置'}`);
+        break;
+
+      case 'groq':
+        // Groq API - 單個 Key
+        if (process.env.GROQ_API_KEY) {
+          apiKeys = [process.env.GROQ_API_KEY];
+        }
+        console.log(`[統一 AI 提供商] 已初始化 Groq: ${apiKeys.length > 0 ? '已配置' : '未配置'}`);
         break;
 
       case 'glm-commercials':
@@ -703,23 +1074,52 @@ class UnifiedAIProvider {
         case 'ollama':
           // Ollama 雲 API
           const ollamaApiKey = process.env.OLLAMA_API_KEY || '';
-          const ollamaModel = process.env.OLLAMA_MODEL || 'deepseek-v3.1:671b'; // 默認使用速度快、性能好的模型
-          const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'https://ollama.com/v1';
+          // 優先使用當前設置的模型，否則使用環境變量
+          const ollamaModel = this.currentModel || process.env.OLLAMA_MODEL || 'qwen2.5:14b'; // 默認使用 qwen2.5:14b
+          const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
           const ollamaTimeout = parseInt(process.env.OLLAMA_TIMEOUT || '60000');
-          
-          if (ollamaApiKey) {
-            this.provider = new OllamaProvider({
-              apiKey: ollamaApiKey,
-              model: ollamaModel,
-              baseUrl: ollamaBaseUrl,
-              enableStreaming: process.env.OLLAMA_ENABLE_STREAMING !== 'false',
-              timeout: ollamaTimeout,
-            });
-            console.log(`[統一 AI 提供商] 已創建 Ollama Provider，模型: ${ollamaModel}`);
-          } else {
-            console.warn('[統一 AI 提供商] Ollama API Key 未配置');
-            this.provider = new OriginalGLMProvider('');
-          }
+
+          // 本地 Ollama 不需要 API Key
+          this.provider = new OllamaProvider({
+            apiKey: ollamaApiKey,
+            model: ollamaModel,
+            baseUrl: ollamaBaseUrl,
+            enableStreaming: process.env.OLLAMA_ENABLE_STREAMING !== 'false',
+            timeout: ollamaTimeout,
+          });
+          console.log(`[統一 AI 提供商] 已創建 Ollama Provider，模型: ${ollamaModel}，地址: ${ollamaBaseUrl}`);
+          break;
+
+        case 'kimi':
+          // Kimi AI Provider
+          const kimiModel = process.env.KIMI_MODEL || 'kimi-k2-thinking-turbo';
+          const kimiBaseUrl = process.env.KIMI_BASE_URL || 'https://api.moonshot.cn/v1';
+          const kimiTimeout = parseInt(process.env.KIMI_TIMEOUT || '60000');
+
+          this.provider = new KimiProvider({
+            apiKey: apiKeys[0],
+            model: kimiModel,
+            baseUrl: kimiBaseUrl,
+            enableStreaming: true,
+            timeout: kimiTimeout,
+          });
+          console.log(`[統一 AI 提供商] 已創建 Kimi Provider，模型: ${kimiModel}`);
+          break;
+
+        case 'groq':
+          // Groq Provider (超快速推理)
+          const groqModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+          const groqBaseUrl = process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1';
+          const groqTimeout = parseInt(process.env.GROQ_TIMEOUT || '30000');
+
+          this.provider = new GroqProvider({
+            apiKey: apiKeys[0],
+            model: groqModel,
+            baseUrl: groqBaseUrl,
+            enableStreaming: true,
+            timeout: groqTimeout,
+          });
+          console.log(`[統一 AI 提供商] 已創建 Groq Provider，模型: ${groqModel}`);
           break;
 
         case 'glm-commercials':

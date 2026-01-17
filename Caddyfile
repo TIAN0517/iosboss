@@ -1,100 +1,10 @@
-:81 {
-	@transform_port_query {
-		query XTransformPort=*
-	}
-
-	handle @transform_port_query {
-		reverse_proxy localhost:{query.XTransformPort} {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle {
-		reverse_proxy localhost:9999 {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+# Caddy 自動 HTTPS 配置 - 本地開發
+# bossai.tiankai.it.com -> Next.js (port 9999)
+bossai.tiankai.it.com {
+    reverse_proxy localhost:9999
 }
 
-# bossai.jytian.it.com:9999 - 九九瓦斯行管理系統
-# 註: Next.js 實際運行在 9999，Caddy 不要代理 9999 以避免循環
-# 直接通過主域名 HTTPS 訪問即可
-
-# bossai.jytian.it.com HTTPS 配置
-bossai.jytian.it.com {
-	encode gzip
-
-	# 反向代理到本地 9999 端口
-	reverse_proxy localhost:9999 {
-		header_up Host {host}
-		header_up X-Forwarded-Host {host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto https
-		header_up X-Real-IP {remote_host}
-
-		# WebSocket 支持
-		header_up Upgrade {>Upgrade}
-		header_up Connection {>Connection}
-	}
-
-	# 日誌
-	log {
-		output file C:/Users/tian7/OneDrive/Desktop/媽媽ios/logs/caddy-access.log
-		format json
-	}
-}
-
-# linebot.jytian.it.com - LINE Bot Webhook 專用域名
-linebot.jytian.it.com {
-	encode gzip
-
-	# 自動重寫 /webhook/line → /api/webhook/line
-	@webhook path /webhook/line*
-	handle @webhook {
-		rewrite * /api{path}
-		reverse_proxy localhost:9999 {
-			header_up Host {host}
-			header_up X-Forwarded-Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto https
-			header_up X-Real-IP {remote_host}
-			header_up Upgrade {>Upgrade}
-			header_up Connection {>Connection}
-			# 增加超時時間避免 LINE webhook 逾時
-		 transport http {
-				read_timeout 30s
-				write_timeout 30s
-				dial_timeout 10s
-			}
-		}
-	}
-
-	# 其他請求正常代理
-	reverse_proxy localhost:9999 {
-		header_up Host {host}
-		header_up X-Forwarded-Host {host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto https
-		header_up X-Real-IP {remote_host}
-		header_up Upgrade {>Upgrade}
-		header_up Connection {>Connection}
-		# 增加超時時間
-		transport http {
-			read_timeout 30s
-			write_timeout 30s
-			dial_timeout 10s
-		}
-	}
-
-	# 日誌
-	log {
-		output file C:/Users/tian7/OneDrive/Desktop/媽媽ios/logs/linebot-webhook.log
-		format json
-	}
+# linebot.tiankai.it.com -> Python AI (port 8888)
+linebot.tiankai.it.com {
+    reverse_proxy localhost:8888
 }

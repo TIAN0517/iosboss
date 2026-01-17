@@ -13,12 +13,14 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { username: 'admin' },
-    update: {},
+    update: {
+      name: '管理員',
+    },
     create: {
       username: 'admin',
       password: hashedPassword,
       email: 'admin@bossai.jytian.it.com',
-      name: '老闆娘',
+      name: '管理員',
       role: 'admin',
       phone: '0912345678',
       department: 'management',
@@ -26,7 +28,7 @@ async function main() {
     },
   })
 
-  console.log('✅ 老闆娘帳號已創建/更新:')
+  console.log('✅ 管理員帳號已創建/更新:')
   console.log('   帳號:', admin.username)
   console.log('   密碼:', adminPassword)
 
@@ -99,8 +101,58 @@ async function main() {
   console.log('✅ Tian 管理員帳號已創建/更新:')
   console.log('   帳號:', tian.username)
   console.log('   密碼:', tianPassword)
+
+  // 創建 yzrong (彥榮) 員工帳號
+  const yzrongPassword = 'yzrong123'
+  const hashedYzrongPassword = await bcrypt.hash(yzrongPassword, 10)
+
+  const yzrong = await prisma.user.upsert({
+    where: { username: 'yzrong' },
+    update: {},
+    create: {
+      username: 'yzrong',
+      password: hashedYzrongPassword,
+      email: 'yzrong@bossai.jytian.it.com',
+      name: '彥榮',
+      role: 'staff',
+      phone: '0912345682',
+      department: 'operations',
+      isActive: true,
+    },
+  })
+
+  console.log('✅ 彥榮員工帳號已創建/更新:')
+  console.log('   帳號:', yzrong.username)
+  console.log('   密碼:', yzrongPassword)
+
+  // 創建員工帳號（最低權限）
   console.log('')
-  console.log('⚠️  共創建了 4 個管理員帳號，請妥善保管密碼！')
+  console.log('👷 創建員工帳號（最低權限 - 只能看非敏感資料）...')
+
+  const staffPassword = 'staff123'
+  const hashedStaffPassword = await bcrypt.hash(staffPassword, 10)
+
+  const staff = await prisma.user.upsert({
+    where: { username: 'staff' },
+    update: {},
+    create: {
+      username: 'staff',
+      password: hashedStaffPassword,
+      email: 'staff@bossai.jytian.it.com',
+      name: '員工',
+      role: 'staff',
+      phone: '0912345690',
+      department: 'operations',
+      isActive: true,
+    },
+  })
+
+  console.log('✅ 員工帳號已創建/更新:')
+  console.log('   帳號:', staff.username)
+  console.log('   密碼:', staffPassword)
+  console.log('   權限: 最低（只能看非敏感資料）')
+  console.log('')
+  console.log('⚠️  共創建了 5 個帳號（4 管理員 + 1 員工），請妥善保管密碼！')
 }
 
 main()

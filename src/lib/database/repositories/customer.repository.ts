@@ -1,13 +1,13 @@
 /**
  * Customer Repository
- * 客户数据访问层
+ * 客戶數據访问层
  */
 
 import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../repository';
 import { Result, ok, PaginatedResult, QueryOptions, NotFoundError, ValidationError, ConflictError } from '../types';
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 export interface CustomerCreateInput {
   name: string;
@@ -61,10 +61,10 @@ export class CustomerRepository extends BaseRepository<
     };
   }
 
-  // ==================== 自定义查询 ====================
+  // ==================== 自定义查詢 ====================
 
   /**
-   * 根据电话号码查找客户
+   * 根据電話号码查找客戶
    */
   async findByPhone(phone: string): Promise<Result<any | null>> {
     try {
@@ -79,7 +79,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 搜索客户（按姓名或电话）
+   * 搜尋客戶（按姓名或電話）
    */
   async search(keyword: string): Promise<Result<any[]>> {
     try {
@@ -100,7 +100,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 获取月结客户
+   * 獲取月结客戶
    */
   async getMonthlyCustomers(): Promise<Result<any[]>> {
     try {
@@ -116,7 +116,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 获取有欠款的客户
+   * 獲取有欠款的客戶
    */
   async getCustomersWithDebt(): Promise<Result<any[]>> {
     try {
@@ -135,13 +135,13 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 高级筛选客户
+   * 高级篩選客戶
    */
   async filter(filter: CustomerFilter, options?: QueryOptions): Promise<Result<PaginatedResult<any>>> {
     try {
       const where: Prisma.CustomerWhereInput = {};
 
-      // 搜索条件
+      // 搜尋条件
       if (filter.search) {
         where.OR = [
           { name: { contains: filter.search, mode: 'insensitive' } },
@@ -150,17 +150,17 @@ export class CustomerRepository extends BaseRepository<
         ];
       }
 
-      // 付款类型筛选
+      // 付款類別型篩選
       if (filter.paymentType) {
         where.paymentType = filter.paymentType;
       }
 
-      // 客户分组筛选
+      // 客戶分组篩選
       if (filter.groupId) {
         where.groupId = filter.groupId;
       }
 
-      // 有欠款筛选
+      // 有欠款篩選
       if (filter.hasDebt) {
         where.balance = { gt: 0 };
       }
@@ -186,7 +186,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 获取客户统计
+   * 獲取客戶統計
    */
   async getStats(): Promise<Result<CustomerStats>> {
     try {
@@ -211,7 +211,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 更新客户余额
+   * 更新客戶余额
    */
   async updateBalance(
     customerId: string,
@@ -229,7 +229,7 @@ export class CustomerRepository extends BaseRepository<
 
       const newBalance = customer.balance + amount;
 
-      // 检查信用额度
+      // 檢查信用额度
       if (options?.checkCreditLimit && newBalance > customer.creditLimit) {
         throw new ValidationError(
           `Balance exceeds credit limit: ${customer.creditLimit}`,
@@ -248,7 +248,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 记录客户付款
+   * 記錄客戶付款
    */
   async recordPayment(
     customerId: string,
@@ -292,7 +292,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 获取客户订单历史
+   * 獲取客戶訂單历史
    */
   async getOrderHistory(
     customerId: string,
@@ -321,7 +321,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 获取客户月结单
+   * 獲取客戶月结单
    */
   async getMonthlyStatements(
     customerId: string,
@@ -347,7 +347,7 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 检查客户是否可以删除
+   * 檢查客戶是否可以刪除
    */
   async canDelete(customerId: string): Promise<Result<boolean>> {
     try {
@@ -379,11 +379,11 @@ export class CustomerRepository extends BaseRepository<
   }
 
   /**
-   * 创建客户（带验证）
+   * 創建客戶（带驗證）
    */
   async createWithValidation(data: CustomerCreateInput): Promise<Result<any>> {
     try {
-      // 验证电话号码唯一性
+      // 驗證電話号码唯一性
       const existing = await this.prisma.customer.findUnique({
         where: { phone: data.phone },
       });
@@ -392,7 +392,7 @@ export class CustomerRepository extends BaseRepository<
         throw new ConflictError(`Customer with phone ${data.phone} already exists`);
       }
 
-      // 验证客户分组
+      // 驗證客戶分组
       if (data.groupId) {
         const group = await this.prisma.customerGroup.findUnique({
           where: { id: data.groupId },
@@ -407,7 +407,7 @@ export class CustomerRepository extends BaseRepository<
         }
       }
 
-      // 创建客户
+      // 創建客戶
       const customer = await this.prisma.customer.create({
         data: {
           ...data,

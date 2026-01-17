@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 9999 2>&1 | tee dev.log",
+    "dev": "next dev -p 9999",
     "build": "prisma generate && next build",
     "build:standalone": "next build && node copy-assets.js",
     "start": "node .next/standalone/server.js",
@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:seed": "node prisma/seed.js",
-    "db:setup": "npm run db:generate && npm run db:push && npm run db:seed"
+    "db:setup": "npm run db:generate && npm run db:push && npm run db:seed",
+    "db:add-historical-attendance": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/add-historical-attendance.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -154,20 +154,32 @@ async function sendToGroup(groupId: string, type: string, content: any) {
     // 構建訊息
     const message: LineMessage = { type, content }
 
-    // 實際實作時，使用LINE Messaging API
-    // const response = await fetch('https://api.line.me/v2/bot/message/push', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${LINE_BOT_CONFIG.channelAccessToken}`,
-    //   },
-    //   body: JSON.stringify({
-    //     to: groupId,
-    //     messages: [message],
-    //   }),
-    // })
+    // 使用 LINE Messaging API 發送訊息
+    const lineMessages = type === 'text'
+      ? [{ type: 'text', text: content }]
+      : [content]
 
-    // 模擬發送成功
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_BOT_CONFIG.channelAccessToken}`,
+      },
+      body: JSON.stringify({
+        to: groupId,
+        messages: lineMessages,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[LINE Bot] API 錯誤:', response.status, errorText)
+      return NextResponse.json(
+        { error: 'LINE API 發送失敗', status: response.status, details: errorText },
+        { status: response.status }
+      )
+    }
+
     console.log(`[LINE Bot] 發送訊息到群組 ${group.groupName}:`, message)
 
     return NextResponse.json({
@@ -189,7 +201,32 @@ async function sendToUser(userId: string, type: string, content: any) {
   try {
     const message: LineMessage = { type, content }
 
-    // 實際實作時，使用LINE Messaging API
+    // 使用 LINE Messaging API 發送訊息
+    const lineMessages = type === 'text'
+      ? [{ type: 'text', text: content }]
+      : [content]
+
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_BOT_CONFIG.channelAccessToken}`,
+      },
+      body: JSON.stringify({
+        to: userId,
+        messages: lineMessages,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[LINE Bot] API 錯誤:', response.status, errorText)
+      return NextResponse.json(
+        { error: 'LINE API 發送失敗', status: response.status, details: errorText },
+        { status: response.status }
+      )
+    }
+
     console.log(`[LINE Bot] 發送訊息給用戶 ${userId}:`, message)
 
     return NextResponse.json({
@@ -210,11 +247,57 @@ async function broadcast(type: string, content: any) {
   try {
     const groups = await getGroupsFromDatabase()
 
+    if (groups.length === 0) {
+      return NextResponse.json(
+        { error: '沒有已連接的群組' },
+        { status: 400 }
+      )
+    }
+
     console.log(`[LINE Bot] 廣播訊息到 ${groups.length} 個群組`)
+
+    // 構建訊息
+    const lineMessages = type === 'text'
+      ? [{ type: 'text', text: content }]
+      : [content]
+
+    // 發送到每個群組
+    const results = await Promise.allSettled(
+      groups.map(async (group) => {
+        const response = await fetch('https://api.line.me/v2/bot/message/push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LINE_BOT_CONFIG.channelAccessToken}`,
+          },
+          body: JSON.stringify({
+            to: group.groupId,
+            messages: lineMessages,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`[LINE Bot] 發送到 ${group.groupName} 失敗:`, response.status, errorText)
+          throw new Error(`發送到 ${group.groupName} 失敗: ${response.status}`)
+        }
+
+        return {
+          groupId: group.groupId,
+          groupName: group.groupName,
+          groupType: group.groupType,
+          memberCount: group.memberCount,
+          status: 'sent',
+        }
+      })
+    )
+
+    const succeeded = results.filter(r => r.status === 'fulfilled')
+    const failed = results.filter(r => r.status === 'rejected')
 
     return NextResponse.json({
       success: true,
-      message: '廣播發送成功',
+      message: `廣播發送完成 (${succeeded.length}/${groups.length} 成功)`,
       groups: groups.map(g => ({
         groupId: g.groupId,
         groupName: g.groupName,
@@ -223,6 +306,11 @@ async function broadcast(type: string, content: any) {
       })),
       sentAt: new Date().toISOString(),
       messagePreview: type === 'text' ? content : JSON.stringify(content),
+      stats: {
+        total: groups.length,
+        succeeded: succeeded.length,
+        failed: failed.length,
+      },
     })
   } catch (error) {
     console.error('廣播訊息失敗:', error)

@@ -14,8 +14,18 @@ import {
 } from '@/lib/voice-service'
 import { aiProvider } from '@/lib/ai-provider-unified'
 
-// 自然對話系統提示
-const NATURAL_SYSTEM_PROMPT = "你是 BossJy-99，九九瓦斯行的智能助手。對話風格：像朋友一樣自然聊天，說話簡短有力（不超過50字），使用繁體中文和emoji，可以開玩笑。當老闆娘說累/忙時要關心，說笨時要調皮回應。"
+// 自然對話系統提示（台灣口語風格）
+const NATURAL_SYSTEM_PROMPT = `你是 BossJy-99，九九瓦斯行的智能助手。
+
+【重要】說話要像真人日常對話，不是朗讀課文：
+- 用口語、說話隨意一點
+- 可以用語氣詞（啊、吧、呢、喔、嘛）
+- 句子不用完整，就像跟朋友聊天
+- 偶爾夾雜台灣用語（喔、啦、耶、啥、嘛）
+- 不要太正式，像聊天室說話那種感覺
+- 簡短回應就好，不要長篇大論
+- emoji 隨意用，讓對話更生動
+- 全部用繁體中文`
 
 /**
  * POST /api/voice/chat
@@ -29,6 +39,9 @@ const NATURAL_SYSTEM_PROMPT = "你是 BossJy-99，九九瓦斯行的智能助手
  * 5. 返回文字 + 音頻
  */
 export async function POST(request: NextRequest) {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice/chat/route.ts:31',message:'語音聊天 API 開始',data:{hasDG_API_KEY:!!process.env.DG_API_KEY,hasAZ_SPEECH_KEY:!!process.env.AZ_SPEECH_KEY,hasELEVENLABS_API_KEY:!!process.env.ELEVENLABS_API_KEY,hasGLM_API_KEY:!!process.env.GLM_API_KEY},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   try {
     // 1. 解析表單數據
     const formData = await request.formData()
@@ -51,9 +64,15 @@ export async function POST(request: NextRequest) {
     // 2. Deepgram ASR - 音頻轉文字
     let transcript = ''
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice/chat/route.ts:52',message:'開始 ASR 轉換',data:{audioSize:audioFile.size,audioType:audioFile.type,hasDG_API_KEY:!!process.env.DG_API_KEY},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       const audioBuffer = Buffer.from(await audioFile.arrayBuffer())
       const asrResult = await transcribeWithDeepgram(audioBuffer, audioFile.type || 'audio/webm')
       transcript = asrResult.text
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice/chat/route.ts:56',message:'ASR 轉換完成',data:{transcriptLength:transcript.length,hasTranscript:!!transcript},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
 
       console.log('[Voice Chat] ASR 結果:', transcript)
 
@@ -64,6 +83,9 @@ export async function POST(request: NextRequest) {
         )
       }
     } catch (asrError: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice/chat/route.ts:66',message:'ASR 轉換失敗',data:{errorMessage:asrError.message,errorName:asrError.name},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       console.error('[Voice Chat] ASR 失敗:', asrError)
       return NextResponse.json(
         { error: `語音識別失敗: ${asrError.message}` },
@@ -194,7 +216,13 @@ export async function POST(request: NextRequest) {
  * 檢查服務狀態
  */
 export async function GET() {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice/chat/route.ts:208',message:'檢查語音服務可用性',data:{hasDG_API_KEY:!!process.env.DG_API_KEY,hasAZ_SPEECH_KEY:!!process.env.AZ_SPEECH_KEY,hasELEVENLABS_API_KEY:!!process.env.ELEVENLABS_API_KEY,hasGLM_API_KEY:!!process.env.GLM_API_KEY},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   const services = checkServiceAvailability()
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice/chat/route.ts:210',message:'服務可用性結果',data:{deepgram:services.deepgram,azure:services.azure,elevenlabs:services.elevenlabs,glm:services.glm},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   return NextResponse.json({
     services,

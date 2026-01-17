@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>停止語音</title>
+</head>
+<body>
+    <h1>語音已停止</h1>
+    <script>
+        // 停止所有語音
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel()
+            console.log('語音已停止')
+        }
+
+        // 關閉視窗
+        setTimeout(() => {
+            window.close()
+        }, 1000)
+    </script>
+</body>
+</html>

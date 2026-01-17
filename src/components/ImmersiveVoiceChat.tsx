@@ -242,6 +242,144 @@ export function ImmersiveVoiceChat({ onClose, initialMessage }: ImmersiveVoiceCh
   }, [stopWaveformVisualization])
 
   // ========================================
+  // 瀏覽器 TTS 播放（降級方案）
+  // ========================================
+
+  const playBrowserTTS = useCallback(async (text: string): Promise<void> => {
+    if (!('speechSynthesis' in window)) {
+      console.warn('[Browser TTS] 瀏覽器不支援語音合成')
+      return
+    }
+
+    console.log('[Browser TTS] 開始播放:', text.substring(0, 50))
+
+    return new Promise<void>((resolve, reject) => {
+      // 停止當前播放
+      window.speechSynthesis.cancel()
+
+      const utterance = new SpeechSynthesisUtterance(text)
+
+      // 設置語音參數
+      utterance.lang = 'zh-TW'
+      utterance.rate = 1.1
+      utterance.pitch = 1.05
+      utterance.volume = 1.0
+
+      // 獲取最佳語音
+      const voices = window.speechSynthesis.getVoices()
+      const chineseVoice = voices.find(v =>
+        v.lang.includes('zh') && (v.name.includes('Female') || v.name.includes('Neural') || v.name.includes('Google'))
+      ) || voices.find(v => v.lang.includes('zh'))
+
+      if (chineseVoice) {
+        utterance.voice = chineseVoice
+        console.log('[Browser TTS] 使用語音:', chineseVoice.name)
+      }
+
+      utterance.onstart = () => {
+        console.log('[Browser TTS] 開始說話')
+        setChatState('playing')
+      }
+
+      utterance.onend = () => {
+        console.log('[Browser TTS] 播放完成')
+        setChatState('idle')
+        resolve()
+      }
+
+      utterance.onerror = (e) => {
+        console.error('[Browser TTS] 播放錯誤:', e)
+        setChatState('idle')
+        reject(e)
+      }
+
+      window.speechSynthesis.speak(utterance)
+    })
+  }, [])
+
+  // ========================================
+  // TTS 音頻播放
+  // ========================================
+
+  const playTTSAudio = useCallback(async (base64Audio: string, mimeType: string): Promise<void> => {
+    console.log('[TTS] 開始播放音頻:', {
+      mimeType,
+      dataLength: base64Audio?.length,
+      previewSize: base64Audio?.substring(0, 50),
+    })
+
+    return new Promise((resolve, reject) => {
+      try {
+        // 停止當前播放
+        if (currentAudioRef.current) {
+          currentAudioRef.current.pause()
+          currentAudioRef.current = null
+        }
+
+        // 創建音頻元素
+        const audioSrc = `data:${mimeType};base64,${base64Audio}`
+        console.log('[TTS] 音頻 URL 長度:', audioSrc.length)
+
+        const audio = new Audio(audioSrc)
+        currentAudioRef.current = audio
+
+        // 設置音量
+        audio.volume = 1.0
+
+        setChatState('playing')
+        console.log('[TTS] 開始播放...')
+
+        // 添加加載監聽
+        audio.onloadedmetadata = () => {
+          console.log('[TTS] 音頻元數據加載完成:', {
+            duration: audio.duration,
+          })
+        }
+
+        audio.oncanplay = () => {
+          console.log('[TTS] 音頻可以播放')
+        }
+
+        audio.onended = () => {
+          console.log('[TTS] 播放完成')
+          setChatState('idle')
+          resolve()
+        }
+
+        audio.onerror = (e) => {
+          console.error('[TTS] 播放錯誤:', {
+            error: audio.error,
+            code: audio.error?.code,
+            message: audio.error?.message,
+          })
+          setChatState('idle')
+          reject(new Error(`音頻播放失敗: ${audio.error?.message || '未知錯誤'}`))
+        }
+
+        // 嘗試播放
+        const playPromise = audio.play()
+
+        if (playPromise) {
+          playPromise
+            .then(() => {
+              console.log('[TTS] 播放成功啟動')
+            })
+            .catch((err) => {
+              console.error('[TTS] play() 被拒絕:', err)
+              // 瀏覽器可能阻止了自動播放，需要用戶交互
+              setChatState('idle')
+              reject(new Error('瀏覽器阻止了自動播放，請點擊播放按鈕'))
+            })
+        }
+
+      } catch (error) {
+        console.error('[TTS] 創建音頻失敗:', error)
+        reject(error)
+      }
+    })
+  }, [])
+
+  // ========================================
   // 處理音頻（服務端流式處理）
   // ========================================
 
@@ -409,144 +547,6 @@ export function ImmersiveVoiceChat({ onClose, initialMessage }: ImmersiveVoiceCh
   }, [messages, startWaveformVisualization, stopWaveformVisualization, playBrowserTTS, playTTSAudio])
 
   // ========================================
-  // 瀡覽器 TTS 播放（降級方案）
-  // ========================================
-
-  const playBrowserTTS = useCallback(async (text: string): Promise<void> => {
-    if (!('speechSynthesis' in window)) {
-      console.warn('[Browser TTS] 瀏覽器不支援語音合成')
-      return
-    }
-
-    console.log('[Browser TTS] 開始播放:', text.substring(0, 50))
-
-    return new Promise<void>((resolve, reject) => {
-      // 停止當前播放
-      window.speechSynthesis.cancel()
-
-      const utterance = new SpeechSynthesisUtterance(text)
-
-      // 設置語音參數
-      utterance.lang = 'zh-TW'
-      utterance.rate = 1.1
-      utterance.pitch = 1.05
-      utterance.volume = 1.0
-
-      // 獲取最佳語音
-      const voices = window.speechSynthesis.getVoices()
-      const chineseVoice = voices.find(v =>
-        v.lang.includes('zh') && (v.name.includes('Female') || v.name.includes('Neural') || v.name.includes('Google'))
-      ) || voices.find(v => v.lang.includes('zh'))
-
-      if (chineseVoice) {
-        utterance.voice = chineseVoice
-        console.log('[Browser TTS] 使用語音:', chineseVoice.name)
-      }
-
-      utterance.onstart = () => {
-        console.log('[Browser TTS] 開始說話')
-        setChatState('playing')
-      }
-
-      utterance.onend = () => {
-        console.log('[Browser TTS] 播放完成')
-        setChatState('idle')
-        resolve()
-      }
-
-      utterance.onerror = (e) => {
-        console.error('[Browser TTS] 播放錯誤:', e)
-        setChatState('idle')
-        reject(e)
-      }
-
-      window.speechSynthesis.speak(utterance)
-    })
-  }, [])
-
-  // ========================================
-  // TTS 音頻播放
-  // ========================================
-
-  const playTTSAudio = useCallback(async (base64Audio: string, mimeType: string): Promise<void> => {
-    console.log('[TTS] 開始播放音頻:', {
-      mimeType,
-      dataLength: base64Audio?.length,
-      previewSize: base64Audio?.substring(0, 50),
-    })
-
-    return new Promise((resolve, reject) => {
-      try {
-        // 停止當前播放
-        if (currentAudioRef.current) {
-          currentAudioRef.current.pause()
-          currentAudioRef.current = null
-        }
-
-        // 創建音頻元素
-        const audioSrc = `data:${mimeType};base64,${base64Audio}`
-        console.log('[TTS] 音頻 URL 長度:', audioSrc.length)
-
-        const audio = new Audio(audioSrc)
-        currentAudioRef.current = audio
-
-        // 設置音量
-        audio.volume = 1.0
-
-        setChatState('playing')
-        console.log('[TTS] 開始播放...')
-
-        // 添加加載監聽
-        audio.onloadedmetadata = () => {
-          console.log('[TTS] 音頻元數據加載完成:', {
-            duration: audio.duration,
-          })
-        }
-
-        audio.oncanplay = () => {
-          console.log('[TTS] 音頻可以播放')
-        }
-
-        audio.onended = () => {
-          console.log('[TTS] 播放完成')
-          setChatState('idle')
-          resolve()
-        }
-
-        audio.onerror = (e) => {
-          console.error('[TTS] 播放錯誤:', {
-            error: audio.error,
-            code: audio.error?.code,
-            message: audio.error?.message,
-          })
-          setChatState('idle')
-          reject(new Error(`音頻播放失敗: ${audio.error?.message || '未知錯誤'}`))
-        }
-
-        // 嘗試播放
-        const playPromise = audio.play()
-
-        if (playPromise) {
-          playPromise
-            .then(() => {
-              console.log('[TTS] 播放成功啟動')
-            })
-            .catch((err) => {
-              console.error('[TTS] play() 被拒絕:', err)
-              // 瀏覽器可能阻止了自動播放，需要用戶交互
-              setChatState('idle')
-              reject(new Error('瀏覽器阻止了自動播放，請點擊播放按鈕'))
-            })
-        }
-
-      } catch (error) {
-        console.error('[TTS] 創建音頻失敗:', error)
-        reject(error)
-      }
-    })
-  }, [])
-
-  // ========================================
   // 控制函數
   // ========================================
 
@@ -586,12 +586,24 @@ export function ImmersiveVoiceChat({ onClose, initialMessage }: ImmersiveVoiceCh
   useEffect(() => {
     // 檢查服務狀態
     const checkServices = async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImmersiveVoiceChat.tsx:588',message:'檢查語音服務狀態',data:{url:'/api/voice/chat'},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       try {
         const res = await fetch('/api/voice/chat')
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImmersiveVoiceChat.tsx:591',message:'語音服務響應',data:{status:res.status,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         const data = await res.json()
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImmersiveVoiceChat.tsx:592',message:'語音服務數據',data:{hasServices:!!data.services,deepgram:data.services?.deepgram,azure:data.services?.azure,elevenlabs:data.services?.elevenlabs},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         setServicesReady(data.services?.deepgram || false)
         console.log('[Voice] 服務狀態:', data.services)
       } catch (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImmersiveVoiceChat.tsx:595',message:'語音服務檢查失敗',data:{errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'voice-check',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         console.warn('[Voice] 無法檢查服務狀態:', error)
       }
     }
@@ -617,6 +629,10 @@ export function ImmersiveVoiceChat({ onClose, initialMessage }: ImmersiveVoiceCh
       }
       if (currentAudioRef.current) {
         currentAudioRef.current.pause()
+      }
+      // 停止瀏覽器語音合成
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
       }
     }
   }, [])
@@ -652,6 +668,13 @@ export function ImmersiveVoiceChat({ onClose, initialMessage }: ImmersiveVoiceCh
         <button
           onClick={() => {
             triggerHaptic('light')
+            // 停止所有語音
+            if ('speechSynthesis' in window) {
+              window.speechSynthesis.cancel()
+            }
+            if (currentAudioRef.current) {
+              currentAudioRef.current.pause()
+            }
             onClose?.()
           }}
           className="w-12 h-12 rounded-full bg-black bg-opacity-30 flex items-center justify-center hover:bg-opacity-50 transition-all"

@@ -381,8 +381,8 @@ model LineConversation {
   @@index([groupId])
 }
 
-// ==================== 审计日志模型 ====================
-// 企业级审计追踪系统 - 记录所有关键操作
+// ==================== 審計日誌模型 ====================
+// 企業級審計追蹤系統 - 記錄所有關鍵操作
 
 model AuditLog {
   id         String   @id
@@ -463,7 +463,7 @@ model SyncChange {
   timestamp  DateTime @default(now())
   synced     Boolean  @default(false)
   syncedAt   DateTime?
-  error      String?  // 同步錯誤信息
+  error      String?  // 同步錯誤資訊
 
   @@index([synced])
   @@index([tableName])
@@ -559,4 +559,25 @@ model EmployeeSchedule {
   @@index([scheduleDate])
   @@index([employeeName])
   @@map("employee_schedules")
+}
+
+// ==================== 打卡記錄模型 ====================
+// 帝皇瓦斯行上下班打卡記錄（符合勞基法要求）
+
+model AttendanceRecord {
+  id          String   @id @default(cuid())
+  userId      String   // LINE User ID
+  userName    String   // 員工姓名
+  date        String   // 日期 YYYY-MM-DD
+  clockIn     String?  // 上班時間 HH:MM
+  clockOut    String?  // 下班時間 HH:MM
+  workHours   Float?   // 工時（小時計算後存入）
+  note        String?  // 備註
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+  @@map("attendance_records")
 }

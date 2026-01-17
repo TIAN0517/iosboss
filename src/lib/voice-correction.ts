@@ -67,10 +67,8 @@ const COMMON_CORRECTIONS: Record<string, string> = {
 
 // 業務術語糾錯
 const BUSINESS_TERMS: Record<string, string> = {
-  '老闆': '老闆娘',
-  'Boss': '老闆娘',
-  'boss': '老闆娘',
-  '老版': '老闆娘',
+  '老版': '老闆',
+  '老板': '老闆',
 }
 
 // 常見繁簡轉換（針對 zh-CN 識別結果）
@@ -80,7 +78,7 @@ const SIMPLIFIED_TO_TRADITIONAL: Record<string, string> = {
   '库存': '庫存',
   '客户': '客戶',
   '支票': '支票',
-  '老板': '老闆娘',
+  '老板': '老闆',
   '老板娘': '老闆娘',
   '二十公斤': '20公斤',
   '五十公斤': '50公斤',

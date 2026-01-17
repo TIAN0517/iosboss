@@ -1,6 +1,6 @@
 /**
  * Audit Logger
- * 审计日志系统 - 追踪所有关键操作
+ * 審計日誌系統 - 追蹤所有关键操作
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -9,7 +9,7 @@ import { PrismaClient } from '@prisma/client';
 import { Result, ok, err, AuditLog, AuditAction } from './types';
 import { db } from '@/lib/db';
 
-// ==================== 审计日志器 ====================
+// ==================== 審計日誌器 ====================
 
 export class AuditLogger {
   private prisma: PrismaClient;
@@ -24,10 +24,10 @@ export class AuditLogger {
     this.startFlushInterval();
   }
 
-  // ==================== 日志记录 ====================
+  // ==================== 日誌記錄 ====================
 
   /**
-   * 记录审计日志
+   * 記錄審計日誌
    */
   async log(params: {
     userId?: string;
@@ -61,10 +61,10 @@ export class AuditLogger {
         metadata: params.metadata,
       };
 
-      // 添加到缓冲区
+      // 新增到緩衝区
       this.buffer.push(log);
 
-      // 缓冲区满了则刷新
+      // 緩衝区满了则重新整理
       if (this.buffer.length >= this.bufferSize) {
         await this.flush();
       }
@@ -76,7 +76,7 @@ export class AuditLogger {
   }
 
   /**
-   * 记录创建操作
+   * 記錄創建操作
    */
   async logCreate(params: {
     userId?: string;
@@ -94,7 +94,7 @@ export class AuditLogger {
   }
 
   /**
-   * 记录更新操作
+   * 記錄更新操作
    */
   async logUpdate(params: {
     userId?: string;
@@ -113,7 +113,7 @@ export class AuditLogger {
   }
 
   /**
-   * 记录删除操作
+   * 記錄刪除操作
    */
   async logDelete(params: {
     userId?: string;
@@ -131,7 +131,7 @@ export class AuditLogger {
   }
 
   /**
-   * 记录登录操作
+   * 記錄登入操作
    */
   async logLogin(params: {
     userId: string;
@@ -148,7 +148,7 @@ export class AuditLogger {
   }
 
   /**
-   * 记录登出操作
+   * 記錄登出操作
    */
   async logLogout(params: {
     userId: string;
@@ -164,10 +164,10 @@ export class AuditLogger {
     });
   }
 
-  // ==================== 查询操作 ====================
+  // ==================== 查詢操作 ====================
 
   /**
-   * 获取用户审计日志
+   * 獲取使用者審計日誌
    */
   async getUserLogs(
     userId: string,
@@ -210,7 +210,7 @@ export class AuditLogger {
   }
 
   /**
-   * 获取实体审计日志
+   * 獲取实体審計日誌
    */
   async getEntityLogs(
     entityType: string,
@@ -236,7 +236,7 @@ export class AuditLogger {
   }
 
   /**
-   * 获取所有审计日志
+   * 獲取所有審計日誌
    */
   async getAllLogs(options?: {
     limit?: number;
@@ -288,10 +288,10 @@ export class AuditLogger {
     }
   }
 
-  // ==================== 缓冲区管理 ====================
+  // ==================== 緩衝区管理 ====================
 
   /**
-   * 刷新缓冲区到数据库
+   * 重新整理緩衝区到數據庫
    */
   async flush(): Promise<Result<void>> {
     if (this.buffer.length === 0) {
@@ -325,31 +325,31 @@ export class AuditLogger {
   }
 
   /**
-   * 获取缓冲区大小
+   * 獲取緩衝区大小
    */
   getBufferSize(): number {
     return this.buffer.length;
   }
 
   /**
-   * 强制刷新
+   * 强制重新整理
    */
   async forceFlush(): Promise<Result<void>> {
     return this.flush();
   }
 
-  // ==================== 定期刷新 ====================
+  // ==================== 定期重新整理 ====================
 
   private startFlushInterval(): void {
     this.flushInterval = setInterval(async () => {
       if (this.buffer.length > 0) {
         await this.flush();
       }
-    }, 10000); // 每10秒刷新一次
+    }, 10000); // 每10秒重新整理一次
   }
 
   /**
-   * 销毁日志记录器
+   * 銷毀日誌記錄器
    */
   destroy(): void {
     if (this.flushInterval) {
@@ -359,7 +359,7 @@ export class AuditLogger {
     this.buffer = [];
   }
 
-  // ==================== 辅助方法 ====================
+  // ==================== 輔助方法 ====================
 
   private generateLogId(): string {
     return `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -369,7 +369,7 @@ export class AuditLogger {
    * 从请求中提取 IP 地址
    */
   static extractIpAddress(request: Request): string {
-    // 尝试从各种头部获取真实 IP
+    // 嘗試从各种头部獲取真实 IP
     const headers = [
       'x-forwarded-for',
       'x-real-ip',
@@ -382,7 +382,7 @@ export class AuditLogger {
     for (const header of headers) {
       const ip = request.headers.get(header);
       if (ip) {
-        // 取第一个 IP（如果有多个）
+        // 取第一个 IP（如果有多個）
         return ip.split(',')[0].trim();
       }
     }
@@ -426,7 +426,7 @@ export class AuditLogger {
   }
 }
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 interface PaginatedAuditLogs {
   logs: AuditLog[];
@@ -439,10 +439,10 @@ interface PaginatedAuditLogs {
 
 export const auditLogger = new AuditLogger();
 
-// ==================== 中间件辅助函数 ====================
+// ==================== 中间件輔助函數 ====================
 
 /**
- * 创建审计日志中间件辅助函数
+ * 創建審計日誌中间件輔助函數
  */
 export function createAuditMiddleware(
   logger: AuditLogger,

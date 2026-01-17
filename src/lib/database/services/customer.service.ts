@@ -1,6 +1,6 @@
 /**
  * Customer Service
- * 客户业务服务层 - 协调多个 Repository 实现复杂业务逻辑
+ * 客戶業務服务层 - 协调多個 Repository 实现复杂業務逻辑
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -8,7 +8,7 @@ import { CustomerRepository } from '../repositories/customer.repository';
 import { OrderRepository } from '../repositories/order.repository';
 import { Result, ok, NotFoundError, ValidationError, BusinessError } from '../types';
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 export interface CreateCustomerDto {
   name: string;
@@ -93,13 +93,13 @@ export class CustomerService {
     this.orderRepo = new OrderRepository();
   }
 
-  // ==================== 核心业务方法 ====================
+  // ==================== 核心業務方法 ====================
 
   /**
-   * 创建客户（带完整业务验证）
+   * 創建客戶（带完整業務驗證）
    */
   async createCustomer(dto: CreateCustomerDto): Promise<Result<any>> {
-    // 1. 验证客户数据
+    // 1. 驗證客戶數據
     const validation = await this.validateCustomer(dto);
     if (!validation.valid) {
       return err(new ValidationError(
@@ -107,7 +107,7 @@ export class CustomerService {
       ));
     }
 
-    // 2. 准备客户数据
+    // 2. 准备客戶數據
     const customerData = {
       name: dto.name,
       phone: dto.phone,
@@ -119,7 +119,7 @@ export class CustomerService {
       lineUserId: dto.lineUserId || null,
     };
 
-    // 3. 创建客户
+    // 3. 創建客戶
     const result = await this.customerRepo.create(customerData);
 
     if (!result.success) {
@@ -128,7 +128,7 @@ export class CustomerService {
 
     const customer = result.data;
 
-    // 4. 创建扩展信息
+    // 4. 創建扩展資訊
     const hasExtraData =
       dto.contactPerson ||
       dto.fax ||
@@ -149,7 +149,7 @@ export class CustomerService {
       });
     }
 
-    // 5. 重新获取包含扩展信息的客户
+    // 5. 重新獲取包含扩展資訊的客戶
     const fullCustomer = await this.db.customer.findUnique({
       where: { id: customer.id },
       include: {
@@ -162,16 +162,16 @@ export class CustomerService {
   }
 
   /**
-   * 更新客户
+   * 更新客戶
    */
   async updateCustomer(customerId: string, dto: UpdateCustomerDto): Promise<Result<any>> {
-    // 1. 验证客户存在
+    // 1. 驗證客戶存在
     const existing = await this.customerRepo.findById(customerId);
     if (!existing.success || !existing.data) {
       return err(new NotFoundError('Customer', customerId));
     }
 
-    // 2. 验证数据
+    // 2. 驗證數據
     if (dto.phone && dto.phone !== existing.data.phone) {
       const phoneExists = await this.customerRepo.findByPhone(dto.phone);
       if (phoneExists.success && phoneExists.data) {
@@ -179,7 +179,7 @@ export class CustomerService {
       }
     }
 
-    // 3. 更新基本信息
+    // 3. 更新基本資訊
     const updateData: any = {};
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.phone !== undefined) updateData.phone = dto.phone;
@@ -196,7 +196,7 @@ export class CustomerService {
       return result;
     }
 
-    // 4. 更新扩展信息
+    // 4. 更新扩展資訊
     const hasExtraData =
       dto.contactPerson !== undefined ||
       dto.fax !== undefined ||
@@ -231,7 +231,7 @@ export class CustomerService {
       }
     }
 
-    // 5. 重新获取完整信息
+    // 5. 重新獲取完整資訊
     const fullCustomer = await this.db.customer.findUnique({
       where: { id: customerId },
       include: {
@@ -244,10 +244,10 @@ export class CustomerService {
   }
 
   /**
-   * 删除客户
+   * 刪除客戶
    */
   async deleteCustomer(customerId: string): Promise<Result<any>> {
-    // 1. 检查是否有未完成订单
+    // 1. 檢查是否有未完成訂單
     const pendingOrders = await this.db.gasOrder.count({
       where: {
         customerId,
@@ -261,7 +261,7 @@ export class CustomerService {
       ));
     }
 
-    // 2. 检查月结客户余额
+    // 2. 檢查月结客戶余额
     const customer = await this.db.customer.findUnique({
       where: { id: customerId },
     });
@@ -272,12 +272,12 @@ export class CustomerService {
       ));
     }
 
-    // 3. 删除
+    // 3. 刪除
     return this.customerRepo.delete(customerId);
   }
 
   /**
-   * 获取客户统计
+   * 獲取客戶統計
    */
   async getStatistics(customerId: string): Promise<Result<CustomerStatistics>> {
     try {
@@ -293,7 +293,7 @@ export class CustomerService {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const yearStart = new Date(now.getFullYear(), 0, 1);
 
-      // 订单统计
+      // 訂單統計
       const [totalOrders, ordersThisMonth, ordersThisYear] = await Promise.all([
         this.db.gasOrder.count({ where: { customerId } }),
         this.db.gasOrder.count({
@@ -304,7 +304,7 @@ export class CustomerService {
         }),
       ]);
 
-      // 营收统计
+      // 营收統計
       const [revenueTotal, revenueThisMonth, revenueThisYear] = await Promise.all([
         this.db.gasOrder.aggregate({
           where: { customerId, status: { in: ['completed', 'delivering'] } },
@@ -328,7 +328,7 @@ export class CustomerService {
         }),
       ]);
 
-      // 最后订单
+      // 最後訂單
       const lastOrder = await this.db.gasOrder.findFirst({
         where: { customerId, status: { in: ['completed', 'delivering'] } },
         orderBy: { orderDate: 'desc' },
@@ -383,7 +383,7 @@ export class CustomerService {
   }
 
   /**
-   * 更新客户余额
+   * 更新客戶余额
    */
   async updateBalance(
     customerId: string,
@@ -433,7 +433,7 @@ export class CustomerService {
   }
 
   /**
-   * 记录付款
+   * 記錄付款
    */
   async recordPayment(
     customerId: string,
@@ -448,16 +448,16 @@ export class CustomerService {
     return this.updateBalance(customerId, -amount, 'payment', note);
   }
 
-  // ==================== 验证方法 ====================
+  // ==================== 驗證方法 ====================
 
   /**
-   * 验证客户数据
+   * 驗證客戶數據
    */
   private async validateCustomer(dto: CreateCustomerDto): Promise<CustomerValidationResult> {
     const errors: Array<{ field: string; message: string }> = [];
     const warnings: Array<{ field: string; message: string }> = [];
 
-    // 基本验证
+    // 基本驗證
     if (!dto.name || dto.name.trim().length === 0) {
       errors.push({ field: 'name', message: 'Customer name is required' });
     }
@@ -465,12 +465,12 @@ export class CustomerService {
     if (!dto.phone || dto.phone.trim().length === 0) {
       errors.push({ field: 'phone', message: 'Phone number is required' });
     } else {
-      // 验证电话格式（台湾手机号）
+      // 驗證電話格式（台湾手機号）
       const phoneRegex = /^09\d{8}$/;
       if (!phoneRegex.test(dto.phone)) {
         errors.push({ field: 'phone', message: 'Invalid phone number format (09xxxxxxxx)' });
       } else {
-        // 检查是否已存在
+        // 檢查是否已存在
         const existing = await this.customerRepo.findByPhone(dto.phone);
         if (existing.success && existing.data) {
           errors.push({ field: 'phone', message: 'Phone number already exists' });
@@ -482,7 +482,7 @@ export class CustomerService {
       errors.push({ field: 'address', message: 'Address is required' });
     }
 
-    // 验证客户分组
+    // 驗證客戶分组
     if (dto.groupId) {
       const group = await this.db.customerGroup.findUnique({
         where: { id: dto.groupId },
@@ -495,7 +495,7 @@ export class CustomerService {
       }
     }
 
-    // 验证信用额度
+    // 驗證信用额度
     if (dto.paymentType === 'monthly') {
       if (dto.creditLimit === undefined || dto.creditLimit <= 0) {
         warnings.push({
@@ -505,7 +505,7 @@ export class CustomerService {
       }
     }
 
-    // 验证 LINE User ID
+    // 驗證 LINE User ID
     if (dto.lineUserId) {
       const existing = await this.db.customer.findUnique({
         where: { lineUserId: dto.lineUserId },
@@ -527,7 +527,7 @@ export class CustomerService {
   }
 
   /**
-   * 搜索客户
+   * 搜尋客戶
    */
   async searchCustomers(query: string): Promise<Result<any[]>> {
     try {
@@ -553,14 +553,14 @@ export class CustomerService {
   }
 
   /**
-   * 获取月结客户
+   * 獲取月结客戶
    */
   async getMonthlyCustomers(): Promise<Result<any[]>> {
     return this.customerRepo.getMonthlyCustomers();
   }
 
   /**
-   * 获取余额超过限额的客户
+   * 獲取余额超过限额的客戶
    */
   async getOverCreditCustomers(): Promise<Result<any[]>> {
     try {

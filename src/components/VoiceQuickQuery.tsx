@@ -452,6 +452,11 @@ export function VoiceQuickQuery({ onResult }: VoiceQuickQueryProps) {
       if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = loadVoices
       }
+
+      // 組件卸載時停止語音
+      return () => {
+        speechSynthesis.cancel()
+      }
     }
   }, [])
 

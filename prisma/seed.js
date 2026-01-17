@@ -99,8 +99,31 @@ async function main() {
   console.log('✅ Tian 管理員帳號已創建/更新:')
   console.log('   帳號:', tian.username)
   console.log('   密碼:', tianPassword)
+
+  // 創建 yzrong (彥榮) 員工帳號
+  const yzrongPassword = 'yzrong123'
+  const hashedYzrongPassword = await bcrypt.hash(yzrongPassword, 10)
+
+  const yzrong = await prisma.user.upsert({
+    where: { username: 'yzrong' },
+    update: {},
+    create: {
+      username: 'yzrong',
+      password: hashedYzrongPassword,
+      email: 'yzrong@bossai.jytian.it.com',
+      name: '彥榮',
+      role: 'staff',
+      phone: '0912345682',
+      department: 'operations',
+      isActive: true,
+    },
+  })
+
+  console.log('✅ 彥榮員工帳號已創建/更新:')
+  console.log('   帳號:', yzrong.username)
+  console.log('   密碼:', yzrongPassword)
   console.log('')
-  console.log('⚠️  共創建了 4 個管理員帳號，請妥善保管密碼！')
+  console.log('⚠️  共創建了 5 個帳號（4 管理員 + 1 員工），請妥善保管密碼！')
 }
 
 main()

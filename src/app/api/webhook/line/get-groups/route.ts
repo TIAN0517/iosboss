@@ -8,16 +8,20 @@ import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    // 獲取所有群組
+    // 獲取所有群組（包含數據庫 ID）
     const groups = await db.lineGroup.findMany({
       orderBy: { createdAt: 'desc' },
       select: {
-        groupId: true,
+        id: true,          // 數據庫 ID
+        groupId: true,     // LINE 群組 ID
         groupName: true,
         groupType: true,
         memberCount: true,
         isActive: true,
+        permissions: true,
+        description: true,
         createdAt: true,
+        lastMessageAt: true,
       },
     })
 

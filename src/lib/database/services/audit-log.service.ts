@@ -76,7 +76,7 @@ export class AuditLogService {
   }
 
   /**
-   * 批量記錄審計日誌
+   * 批次記錄審計日誌
    */
   async logBatch(entries: AuditLogEntry[]): Promise<Result<number>> {
     try {
@@ -420,7 +420,7 @@ export function AuditLog(action: string, entityType: string) {
         entityId = args[0].id;
       }
 
-      // 獲取用戶信息（從請求上下文）
+      // 獲取用戶資訊（從請求上下文）
       const userId = (this as any).userId || (this as any).user?.id;
       const username = (this as any).username || (this as any).user?.name;
 

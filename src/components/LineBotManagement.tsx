@@ -24,19 +24,60 @@ import {
   Plus,
   Trash2,
   Copy,
-  RefreshCw
+  RefreshCw,
+  Bot,
+  Sparkles,
+  Zap
 } from 'lucide-react'
 import { LineGroupManager } from './LineGroupManager'
+
+type SenderIdentity = 'admin' | 'bot' | 'ai'
+
+interface SenderOption {
+  value: SenderIdentity
+  label: string
+  icon: React.ReactNode
+  prefix: string
+  color: string
+}
+
+const SENDER_OPTIONS: SenderOption[] = [
+  {
+    value: 'admin',
+    label: '管理員',
+    icon: <Users className="h-4 w-4" />,
+    prefix: '',
+    color: 'bg-blue-50 border-blue-300 text-blue-700'
+  },
+  {
+    value: 'bot',
+    label: 'Bot',
+    icon: <Bot className="h-4 w-4" />,
+    prefix: '🤖 ',
+    color: 'bg-green-50 border-green-300 text-green-700'
+  },
+  {
+    value: 'ai',
+    label: 'AI 助手',
+    icon: <Sparkles className="h-4 w-4" />,
+    prefix: '✨ AI助手：',
+    color: 'bg-purple-50 border-purple-300 text-purple-700'
+  }
+]
 
 export function LineBotManagement() {
   const [activeTab, setActiveTab] = useState('send')
   const [messageType, setMessageType] = useState<'text' | 'flex'>('text')
   const [messageContent, setMessageContent] = useState('')
   const [selectedGroup, setSelectedGroup] = useState('')
+  const [senderIdentity, setSenderIdentity] = useState<SenderIdentity>('bot')
+  const [quickMessage, setQuickMessage] = useState('')
   const [groups, setGroups] = useState<any[]>([])
   const [messageHistory, setMessageHistory] = useState<any[]>([])
   const [sending, setSending] = useState(false)
   const [botStatus, setBotStatus] = useState('active')
+  const [expandedGroupQuickSend, setExpandedGroupQuickSend] = useState<string | null>(null)
+  const [groupQuickMessages, setGroupQuickMessages] = useState<Record<string, string>>({})
 
   // 載入群組列表
   useEffect(() => {
@@ -80,6 +121,17 @@ export function LineBotManagement() {
     }
   }
 
+  // 獲取當前發送者選項
+  const getSenderOption = (): SenderOption => {
+    return SENDER_OPTIONS.find(opt => opt.value === senderIdentity) || SENDER_OPTIONS[0]
+  }
+
+  // 處理發送訊息（添加發送者身份前綴）
+  const prepareMessageContent = (content: string): string => {
+    const senderOption = getSenderOption()
+    return senderOption.prefix + content
+  }
+
   // 發送訊息到群組
   const handleSendToGroup = async () => {
     if (!messageContent.trim() || !selectedGroup) {
@@ -89,6 +141,8 @@ export function LineBotManagement() {
 
     setSending(true)
     try {
+      const finalContent = prepareMessageContent(messageContent)
+
       const response = await fetch('/api/linebot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,7 +151,7 @@ export function LineBotManagement() {
           data: {
             groupId: selectedGroup,
             type: messageType,
-            content: messageType === 'text' ? messageContent : JSON.parse(messageContent),
+            content: messageType === 'text' ? finalContent : JSON.parse(messageContent),
           },
         }),
       })
@@ -105,6 +159,52 @@ export function LineBotManagement() {
       if (response.ok) {
         alert('訊息發送成功！')
         setMessageContent('')
+        loadMessageHistory()
+      } else {
+        try {
+          const error = await response.json()
+          alert(error.error || '發送失敗')
+        } catch {
+          alert('發送失敗，請稍後再試')
+        }
+      }
+    } catch (error) {
+      console.error('發送訊息失敗:', error)
+      alert('發送失敗')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // 快速發送訊息
+  const handleQuickSend = async (groupId?: string) => {
+    const targetGroup = groupId || selectedGroup
+
+    if (!quickMessage.trim() || !targetGroup) {
+      alert('請選擇群組並輸入訊息內容')
+      return
+    }
+
+    setSending(true)
+    try {
+      const finalContent = prepareMessageContent(quickMessage)
+
+      const response = await fetch('/api/linebot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'sendToGroup',
+          data: {
+            groupId: targetGroup,
+            type: 'text',
+            content: finalContent,
+          },
+        }),
+      })
+
+      if (response.ok) {
+        alert('訊息發送成功！')
+        setQuickMessage('')
         loadMessageHistory()
       } else {
         try {
@@ -131,6 +231,8 @@ export function LineBotManagement() {
 
     setSending(true)
     try {
+      const finalContent = prepareMessageContent(messageContent)
+
       const response = await fetch('/api/linebot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +240,7 @@ export function LineBotManagement() {
           action: 'broadcast',
           data: {
             type: messageType,
-            content: messageType === 'text' ? messageContent : JSON.parse(messageContent),
+            content: messageType === 'text' ? finalContent : JSON.parse(messageContent),
           },
         }),
       })
@@ -224,6 +326,90 @@ export function LineBotManagement() {
 
         {/* Send Message Tab */}
         <TabsContent value="send" className="space-y-4">
+          {/* 快速發送區塊 */}
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-blue-600" />
+                快速發送
+              </CardTitle>
+              <CardDescription>快速打字發送訊息到群組</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* 發送者身份選擇 */}
+              <div>
+                <Label className="text-sm">發送者身份</Label>
+                <div className="flex gap-2 mt-2">
+                  {SENDER_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSenderIdentity(option.value)}
+                      className={`px-3 py-2 border-2 rounded-lg transition-all text-sm font-medium flex items-center gap-2 ${
+                        senderIdentity === option.value
+                          ? option.color
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      {option.icon}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 選擇群組和輸入 */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <select
+                    value={selectedGroup}
+                    onChange={(e) => setSelectedGroup(e.target.value)}
+                    className="w-full p-2 border border-slate-300 rounded-lg text-sm"
+                  >
+                    <option value="">選擇群組...</option>
+                    {groups.map((group) => (
+                      <option key={group.groupId} value={group.groupId}>
+                        {group.groupName} ({group.memberCount}人)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-2 flex-[3]">
+                  <Input
+                    value={quickMessage}
+                    onChange={(e) => setQuickMessage(e.target.value)}
+                    placeholder="快速輸入訊息..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleQuickSend()
+                      }
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+                <Button
+                  onClick={() => handleQuickSend()}
+                  disabled={sending || !quickMessage.trim() || !selectedGroup}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  發送
+                </Button>
+              </div>
+
+              {/* 預覽 */}
+              {quickMessage && (
+                <div className="p-2 bg-white rounded border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1">預覽：</p>
+                  <p className="text-sm text-slate-900">
+                    {prepareMessageContent(quickMessage)}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Send to Group */}
             <Card>
@@ -280,6 +466,40 @@ export function LineBotManagement() {
                     </Button>
                   </div>
                 </div>
+
+                {/* 發送者身份選擇 */}
+                {messageType === 'text' && (
+                  <div>
+                    <Label>發送者身份</Label>
+                    <p className="text-xs text-slate-500 mb-2">選擇訊息顯示的發送者身份，會自動添加對應前綴</p>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {SENDER_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setSenderIdentity(option.value)}
+                          className={`p-3 border-2 rounded-lg transition-all flex flex-col items-center gap-2 ${
+                            senderIdentity === option.value
+                              ? option.color
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {option.icon}
+                          <span className="text-xs font-medium">{option.label}</span>
+                          {senderIdentity === option.value && (
+                            <CheckCircle className="h-3 w-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {/* 預覽 */}
+                    <div className="mt-2 p-2 bg-slate-50 rounded border border-slate-200">
+                      <p className="text-xs text-slate-500 mb-1">訊息預覽：</p>
+                      <p className="text-sm text-slate-900">
+                        {prepareMessageContent(messageContent || '你的訊息內容')}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label>訊息內容</Label>
@@ -373,41 +593,117 @@ export function LineBotManagement() {
           <Card>
             <CardHeader>
               <CardTitle>已連接群組</CardTitle>
-              <CardDescription>管理LINE Bot連接的群組列表</CardDescription>
+              <CardDescription>管理LINE Bot連接的群組列表並快速發送訊息</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="max-h-[500px]">
                 <div className="space-y-3">
-                  {groups.map((group) => (
-                    <div key={group.groupId} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:border-green-300 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-green-100 p-2 rounded-lg">
-                          <Users className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-slate-900">{group.groupName}</h3>
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <Badge variant="outline" className="text-xs">
-                              ID: {group.groupId}
-                            </Badge>
-                            <div className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              <span>{group.memberCount} 位成員</span>
+                  {groups.map((group) => {
+                    const isExpanded = expandedGroupQuickSend === group.groupId
+                    return (
+                      <div key={group.groupId} className="border border-slate-200 rounded-lg hover:border-green-300 transition-all overflow-hidden">
+                        {/* 群組標題 */}
+                        <div className="flex items-center justify-between p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <Users className="h-6 w-6 text-green-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-slate-900">{group.groupName}</h3>
+                              <div className="flex items-center gap-2 text-sm text-slate-600">
+                                <Badge variant="outline" className="text-xs">
+                                  ID: {group.groupId}
+                                </Badge>
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  <span>{group.memberCount} 位成員</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={botStatus === 'active' ? 'default' : 'secondary'}>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              已連接
+                            </Badge>
+                            <Button
+                              variant={isExpanded ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setExpandedGroupQuickSend(isExpanded ? null : group.groupId)}
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              快速發送
+                            </Button>
+                          </div>
                         </div>
+
+                        {/* 快速發送表單 */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-200 p-4 bg-slate-50">
+                            {/* 發送者身份 */}
+                            <div className="mb-3">
+                              <Label className="text-sm">發送者身份</Label>
+                              <div className="flex gap-2 mt-2">
+                                {SENDER_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.value}
+                                    onClick={() => setSenderIdentity(option.value)}
+                                    className={`px-3 py-2 border-2 rounded-lg transition-all text-sm font-medium flex items-center gap-2 ${
+                                      senderIdentity === option.value
+                                        ? option.color
+                                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                                    }`}
+                                  >
+                                    {option.icon}
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 訊息輸入 */}
+                            <div className="flex gap-2">
+                              <Input
+                                value={groupQuickMessages[group.groupId] || ''}
+                                onChange={(e) =>
+                                  setGroupQuickMessages((prev) => ({
+                                    ...prev,
+                                    [group.groupId]: e.target.value,
+                                  }))
+                                }
+                                placeholder="輸入訊息..."
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault()
+                                    handleQuickSend(group.groupId)
+                                  }
+                                }}
+                                className="flex-1"
+                              />
+                              <Button
+                                onClick={() => handleQuickSend(group.groupId)}
+                                disabled={sending || !(groupQuickMessages[group.groupId]?.trim())}
+                                size="sm"
+                              >
+                                <Send className="h-4 w-4 mr-1" />
+                                發送
+                              </Button>
+                            </div>
+
+                            {/* 預覽 */}
+                            {groupQuickMessages[group.groupId] && (
+                              <div className="mt-2 p-2 bg-white rounded border border-slate-200">
+                                <p className="text-xs text-slate-500 mb-1">預覽：</p>
+                                <p className="text-sm text-slate-900">
+                                  {prepareMessageContent(groupQuickMessages[group.groupId])}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={botStatus === 'active' ? 'default' : 'secondary'}>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          已連接
-                        </Badge>
-                        <Button variant="ghost" size="icon">
-                          <Settings className="h-4 w-4 text-slate-400" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </ScrollArea>
             </CardContent>

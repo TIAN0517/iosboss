@@ -1,51 +1,38 @@
-# ========================================
-# Cloudflare Tunnel 設定 - 支援多域名
-# 九九瓦斯行管理系統 - 持久型隧道
-# ========================================
+# Cloudflare Tunnel 設定
+# 本地開發配置 - 指向本地服務
+tunnel: 6b975853-d68a-4262-9870-bc10aade2759
+credentials-file: C:\\Users\\tian7\\.cloudflared\\6b975853-d68a-4262-9870-bc10aade2759.json
 
-# 定義隧道路由規則
 ingress:
-  # ========================================
-  # LINE Bot Webhook (優先處理)
-  # ========================================
-  - hostname: linebot.jytian.it.com
-    service: http://jyt-gas-nginx:80
-    # Docker 內部網路：nginx 容器的 80 port
+  # Boss AI - 指向 Next.js 主系統（端口 9999）
+  - hostname: bossai.tiankai.it.com
+    service: http://127.0.0.1:9999
     originRequest:
-      http2Origin: true
-      noTLSVerify: false
+      http2Origin: false
+      noTLSVerify: true
       connectTimeout: 30s
       tcpKeepAlive: 30s
       keepAliveConnections: 100
       keepAliveTimeout: 90s
 
-  # ========================================
-  # 主應用路由
-  # ========================================
-  - hostname: bossai.jytian.it.com
-    service: http://jyt-gas-nginx:80
-    # Docker 內部網路：nginx 容器的 80 port
+  # LINE Bot Webhook - 指向 Python AI 服務（端口 8888）
+  - hostname: linebot.tiankai.it.com
+    service: http://127.0.0.1:8888
     originRequest:
-      http2Origin: true
-      noTLSVerify: false
+      http2Origin: false
+      noTLSVerify: true
       connectTimeout: 30s
       tcpKeepAlive: 30s
       keepAliveConnections: 100
       keepAliveTimeout: 90s
 
-  # ========================================
-  # 默認規則：拒絕其他流量
-  # ========================================
   - service: http_status:404
 
-# ========================================
-# 網路設定
-# ========================================
-ipVersion: "4"  # 只使用 IPv4
+# 關鍵修復：使用 HTTP2 而不是 QUIC（更穩定）
+protocol: http2
 
-# ========================================
-# 指標與日誌
-# ========================================
-metrics: 0.0.0.0:2000
-no-autoupdate: true  # 禁用自動更新，使用 Docker 映像版本控制
+ipVersion: "4"
+no-autoupdate: true
 loglevel: info
+# 增加日誌詳細程度
+transport-loglevel: info

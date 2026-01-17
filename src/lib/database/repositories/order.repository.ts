@@ -1,6 +1,6 @@
 /**
  * Order Repository
- * 订单数据访问层 - 核心业务逻辑
+ * 訂單數據访问层 - 核心業務逻辑
  */
 
 import { Prisma } from '@prisma/client';
@@ -15,7 +15,7 @@ import {
 } from '../types';
 import { generateDeliveryNumber } from '../../lib/delivery-number';
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 export interface OrderItemInput {
   productId: string;
@@ -76,14 +76,14 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
     };
   }
 
-  // ==================== 核心业务逻辑 ====================
+  // ==================== 核心業務逻辑 ====================
 
   /**
-   * 创建订单（带库存检查和扣减）
+   * 創建訂單（带庫存檢查和扣减）
    */
   async createOrder(data: OrderCreateInput): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
-      // 1. 验证客户
+      // 1. 驗證客戶
       const customer = await tx.customer.findUnique({
         where: { id: data.customerId },
         include: { group: true },
@@ -93,7 +93,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
         throw new NotFoundError('Customer', data.customerId);
       }
 
-      // 2. 验证产品并计算金额
+      // 2. 驗證產品并计算金额
       const itemsWithDetails = [];
       let subtotal = 0;
 
@@ -111,7 +111,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
           throw new ValidationError(`Product ${product.name} is not available for sale`);
         }
 
-        // 检查库存
+        // 檢查庫存
         const inventory = product.inventory;
         const availableStock = inventory ? inventory.quantity : 0;
 
@@ -144,17 +144,17 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
       const deliveryFee = data.deliveryFee || 0;
       const total = subtotal - discount + deliveryFee;
 
-      // 5. 生成订单号
+      // 5. 生成訂單号
       const orderNo = await this.generateOrderNo(tx);
 
       // 5.5. 生成配送單號
       const deliveryNumber = await generateDeliveryNumber();
 
-      // 6. 创建订单
+      // 6. 創建訂單
       const order = await tx.gasOrder.create({
         data: {
           orderNo,
-          deliveryNumber, // 添加配送單號
+          deliveryNumber, // 新增配送單號
           customerId: data.customerId,
           orderDate: new Date(),
           deliveryDate: data.deliveryDate,
@@ -178,7 +178,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
         },
       });
 
-      // 7. 扣减库存
+      // 7. 扣减庫存
       for (const item of data.items) {
         const inventory = await tx.inventory.findUnique({
           where: { productId: item.productId },
@@ -191,7 +191,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
             data: { quantity: newQuantity },
           });
 
-          // 记录库存变动
+          // 記錄庫存变动
           await tx.inventoryTransaction.create({
             data: {
               productId: item.productId,
@@ -218,7 +218,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
   }
 
   /**
-   * 更新订单状态
+   * 更新訂單状态
    */
   async updateStatus(
     orderId: string,
@@ -235,7 +235,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
         throw new NotFoundError('Order', orderId);
       }
 
-      // 状态转换验证
+      // 状态转换驗證
       const validTransitions: Record<string, string[]> = {
         pending: ['processing', 'delivering', 'cancelled'],
         processing: ['delivering', 'cancelled'],
@@ -253,7 +253,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
         );
       }
 
-      // 更新订单状态
+      // 更新訂單状态
       const updateData: any = { status };
 
       if (status === 'completed' && options?.completedAt) {
@@ -417,7 +417,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
   }
 
   /**
-   * 删除订单（恢复库存）
+   * 刪除訂單（恢復庫存）
    */
   async deleteOrder(orderId: string): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
@@ -430,14 +430,14 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
         throw new NotFoundError('Order', orderId);
       }
 
-      // 只允许删除 pending 状态的订单
+      // 只允许刪除 pending 状态的訂單
       if (order.status !== 'pending') {
         throw new ValidationError(
           `Cannot delete order with status ${order.status}. Only pending orders can be deleted.`
         );
       }
 
-      // 恢复库存
+      // 恢復庫存
       for (const item of order.items) {
         const inventory = await tx.inventory.findUnique({
           where: { productId: item.productId },
@@ -450,7 +450,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
             data: { quantity: newQuantity },
           });
 
-          // 记录库存变动
+          // 記錄庫存变动
           await tx.inventoryTransaction.create({
             data: {
               productId: item.productId,
@@ -464,12 +464,12 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
         }
       }
 
-      // 删除订单项
+      // 刪除訂單项
       await tx.gasOrderItem.deleteMany({
         where: { orderId },
       });
 
-      // 删除订单
+      // 刪除訂單
       const deleted = await tx.gasOrder.delete({
         where: { id: orderId },
       });
@@ -478,10 +478,10 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
     });
   }
 
-  // ==================== 查询方法 ====================
+  // ==================== 查詢方法 ====================
 
   /**
-   * 获取订单摘要
+   * 獲取訂單摘要
    */
   async getSummary(options?: {
     startDate?: Date;
@@ -532,7 +532,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
   }
 
   /**
-   * 获取待配送订单
+   * 獲取待配送訂單
    */
   async getPendingDelivery(): Promise<Result<any[]>> {
     try {
@@ -550,7 +550,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
   }
 
   /**
-   * 获取司机订单
+   * 獲取司机訂單
    */
   async getDriverOrders(driverId: string): Promise<Result<any[]>> {
     try {
@@ -569,7 +569,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
   }
 
   /**
-   * 获取今日订单
+   * 獲取今日訂單
    */
   async getTodayOrders(): Promise<Result<any[]>> {
     try {
@@ -597,7 +597,7 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
   }
 
   /**
-   * 高级筛选订单
+   * 高级篩選訂單
    */
   async filter(filter: OrderFilter, options?: QueryOptions): Promise<Result<any[]>> {
     try {
@@ -650,13 +650,13 @@ export class OrderRepository extends BaseRepository<any, OrderCreateInput, Order
   // ==================== 辅助方法 ====================
 
   /**
-   * 生成订单号
+   * 生成訂單号
    */
   private async generateOrderNo(tx: PrismaClient): Promise<string> {
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
 
-    // 查找今天已有多少订单
+    // 查找今天已有多少訂單
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

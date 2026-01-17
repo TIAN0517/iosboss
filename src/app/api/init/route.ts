@@ -5,11 +5,20 @@ import { hashPassword } from '@/lib/auth'
 // 初始化系統數據 - 九九瓦斯行管理系統 2025
 // 僅創建老闆娘帳號，其他人無法登入
 export async function POST() {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:7',message:'初始化 API 開始',data:{hasDatabaseUrl:!!process.env.DATABASE_URL,databaseUrlLength:process.env.DATABASE_URL?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'init-check',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:10',message:'嘗試連接數據庫',data:{step:'findFirst_user'},timestamp:Date.now(),sessionId:'debug-session',runId:'init-check',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     // 僅創建老闆娘（管理員）帳號
     const existingAdmin = await db.user.findFirst({
       where: { role: 'admin' },
     })
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:14',message:'數據庫查詢成功',data:{hasExistingAdmin:!!existingAdmin},timestamp:Date.now(),sessionId:'debug-session',runId:'init-check',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     let adminInfo = null
 
@@ -48,7 +57,13 @@ export async function POST() {
     }
 
     // 檢查是否已初始化產品
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:51',message:'檢查產品數量',data:{step:'count_products'},timestamp:Date.now(),sessionId:'debug-session',runId:'init-check',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     const existingProducts = await db.product.count()
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:52',message:'產品數量查詢結果',data:{existingProducts},timestamp:Date.now(),sessionId:'debug-session',runId:'init-check',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (existingProducts > 0) {
       return NextResponse.json(
         {
@@ -242,6 +257,9 @@ export async function POST() {
       { status: 201 }
     )
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:245',message:'初始化失敗',data:{errorMessage:error instanceof Error ? error.message : String(error),errorName:error instanceof Error ? error.name : 'Unknown',hasDatabaseUrl:!!process.env.DATABASE_URL},timestamp:Date.now(),sessionId:'debug-session',runId:'init-check',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     console.error('Error initializing system:', error)
     return NextResponse.json(
       { error: '初始化失敗', details: error instanceof Error ? error.message : 'Unknown error' },

@@ -1,6 +1,6 @@
 /**
- * 基础 Repository 类
- * 提供通用的数据访问操作
+ * 基础 Repository 類別
+ * 提供通用的數據访问操作
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -20,7 +20,7 @@ import {
 import { db } from '@/lib/db';
 
 /**
- * Repository 基类
+ * Repository 基類別
  * 提供标准的 CRUD 操作
  */
 export abstract class BaseRepository<T, CreateInput, UpdateInput> {
@@ -35,7 +35,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   // ==================== CRUD 操作 ====================
 
   /**
-   * 根据 ID 查找记录
+   * 根据 ID 查找記錄
    */
   async findById(
     id: string,
@@ -53,7 +53,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 根据 ID 查找记录，不存在则抛出错误
+   * 根据 ID 查找記錄，不存在则抛出錯誤
    */
   async findByIdOrThrow(id: string): Promise<Result<T>> {
     const result = await this.findById(id);
@@ -65,7 +65,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 查找单条记录
+   * 查找单条記錄
    */
   async findOne(
     where: Prisma.InputType<any>,
@@ -83,7 +83,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 查找所有记录
+   * 查找所有記錄
    */
   async findMany(options?: QueryOptions): Promise<Result<T[]>> {
     try {
@@ -100,7 +100,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 分页查询
+   * 分页查詢
    */
   async findPaginated(
     options: QueryOptions & { pagination: PaginationParams }
@@ -128,7 +128,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 创建记录
+   * 創建記錄
    */
   async create(data: CreateInput): Promise<Result<T>> {
     try {
@@ -143,7 +143,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 批量创建记录
+   * 批次創建記錄
    */
   async createMany(data: CreateInput[]): Promise<Result<{ count: number }>> {
     try {
@@ -158,14 +158,14 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 更新记录
+   * 更新記錄
    */
   async update(
     id: string,
     data: UpdateInput
   ): Promise<Result<T>> {
     try {
-      // 检查记录是否存在
+      // 檢查記錄是否存在
       const existing = await this.findById(id);
       if (!existing.success) return existing;
       if (!existing.data) {
@@ -184,7 +184,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 批量更新记录
+   * 批次更新記錄
    */
   async updateMany(
     where: Prisma.InputType<any>,
@@ -202,11 +202,11 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 删除记录
+   * 刪除記錄
    */
   async delete(id: string): Promise<Result<T>> {
     try {
-      // 检查记录是否存在
+      // 檢查記錄是否存在
       const existing = await this.findById(id);
       if (!existing.success) return existing;
       if (!existing.data) {
@@ -223,7 +223,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 批量删除记录
+   * 批次刪除記錄
    */
   async deleteMany(
     where: Prisma.InputType<any>
@@ -239,7 +239,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 统计记录数
+   * 統計記錄数
    */
   async count(where?: Prisma.InputType<any>): Promise<Result<number>> {
     try {
@@ -251,7 +251,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 检查记录是否存在
+   * 檢查記錄是否存在
    */
   async exists(id: string): Promise<Result<boolean>> {
     const result = await this.count({ id } as any);
@@ -259,10 +259,10 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
     return ok(result.data > 0);
   }
 
-  // ==================== 查询构建器 ====================
+  // ==================== 查詢构建器 ====================
 
   /**
-   * 构建查询条件
+   * 构建查詢条件
    */
   protected buildWhere(conditions?: WhereCondition[]): Prisma.InputType<any> | undefined {
     if (!conditions || conditions.length === 0) return undefined;
@@ -280,7 +280,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   }
 
   /**
-   * 构建单个条件
+   * 构建單個条件
    */
   protected buildCondition(condition: WhereCondition): any {
     const { field, operator, value, values } = condition;
@@ -335,10 +335,10 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
     return { [orderBy]: orderDirection || 'desc' };
   }
 
-  // ==================== 事务支持 ====================
+  // ==================== 事務支持 ====================
 
   /**
-   * 使用事务执行操作
+   * 使用事務执行操作
    */
   async withTransaction<R>(
     fn: (tx: PrismaClient) => Promise<R>
@@ -353,10 +353,10 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
     }
   }
 
-  // ==================== 批量操作 ====================
+  // ==================== 批次操作 ====================
 
   /**
-   * 批量操作（带重试）
+   * 批次操作（带重试）
    */
   async batchOperation<R>(
     operations: Array<(tx: PrismaClient) => Promise<R>>,

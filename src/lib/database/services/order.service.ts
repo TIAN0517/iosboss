@@ -1,6 +1,6 @@
 /**
  * Order Service
- * 订单业务服务层 - 协调多个 Repository 实现复杂业务逻辑
+ * 訂單業務服务层 - 协调多個 Repository 实现复杂業務逻辑
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -9,7 +9,7 @@ import { CustomerRepository } from '../repositories/customer.repository';
 import { Result, ok, NotFoundError, ValidationError, BusinessError } from '../types';
 import { db } from '@/lib/db';
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 export interface CreateOrderDto {
   customerId: string;
@@ -77,13 +77,13 @@ export class OrderService {
     this.customerRepo = new CustomerRepository();
   }
 
-  // ==================== 核心业务方法 ====================
+  // ==================== 核心業務方法 ====================
 
   /**
-   * 创建订单（带完整业务验证）
+   * 創建訂單（带完整業務驗證）
    */
   async createOrder(dto: CreateOrderDto): Promise<Result<any>> {
-    // 1. 验证订单数据
+    // 1. 驗證訂單數據
     const validation = await this.validateOrder(dto);
     if (!validation.valid) {
       return err(new ValidationError(
@@ -91,7 +91,7 @@ export class OrderService {
       ));
     }
 
-    // 2. 准备订单数据
+    // 2. 准备訂單數據
     const orderData = {
       customerId: dto.customerId,
       items: dto.items,
@@ -101,7 +101,7 @@ export class OrderService {
       driverId: dto.driverId,
     };
 
-    // 3. 创建订单
+    // 3. 創建訂單
     const result = await this.orderRepo.createOrder(orderData);
 
     if (!result.success) {
@@ -113,7 +113,7 @@ export class OrderService {
     // 4. 发送通知（可选）
     await this.sendOrderNotification(order);
 
-    // 5. 更新客户最后订单时间
+    // 5. 更新客戶最後訂單時間
     await this.db.customer.update({
       where: { id: dto.customerId },
       data: { lastOrderAt: new Date() },
@@ -123,7 +123,7 @@ export class OrderService {
   }
 
   /**
-   * 更新订单状态
+   * 更新訂單状态
    */
   async updateOrderStatus(
     orderId: string,
@@ -139,7 +139,7 @@ export class OrderService {
         throw new NotFoundError('Order', orderId);
       }
 
-      // 业务规则验证
+      // 業務规则驗證
       await this.validateStatusTransition(order.status, dto.status);
 
       // 更新状态
@@ -154,7 +154,7 @@ export class OrderService {
 
       const updatedOrder = result.data;
 
-      // 状态变更后的业务处理
+      // 状态变更后的業務處理
       await this.handleStatusChange(updatedOrder, tx);
 
       return updatedOrder;
@@ -162,7 +162,7 @@ export class OrderService {
   }
 
   /**
-   * 取消订单
+   * 取消訂單
    */
   async cancelOrder(
     orderId: string,
@@ -176,7 +176,7 @@ export class OrderService {
       return result;
     }
 
-    // 记录取消原因
+    // 記錄取消原因
     if (reason) {
       await this.db.gasOrder.update({
         where: { id: orderId },
@@ -188,14 +188,14 @@ export class OrderService {
   }
 
   /**
-   * 删除订单
+   * 刪除訂單
    */
   async deleteOrder(orderId: string): Promise<Result<any>> {
     return this.orderRepo.deleteOrder(orderId);
   }
 
   /**
-   * 获取订单统计
+   * 獲取訂單統計
    */
   async getStatistics(options?: {
     startDate?: Date;
@@ -205,7 +205,7 @@ export class OrderService {
     try {
       const prisma = this.prisma;
 
-      // 获取日期范围
+      // 獲取日期范围
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekStart = new Date(today);
@@ -213,7 +213,7 @@ export class OrderService {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const yearStart = new Date(now.getFullYear(), 0, 1);
 
-      // 营收统计
+      // 营收統計
       const [revenueToday, revenueThisWeek, revenueThisMonth, revenueThisYear] = await Promise.all([
         this.sumRevenueWhere({ orderDate: { gte: today } }),
         this.sumRevenueWhere({ orderDate: { gte: weekStart } }),
@@ -221,7 +221,7 @@ export class OrderService {
         this.sumRevenueWhere({ orderDate: { gte: yearStart } }),
       ]);
 
-      // 订单统计
+      // 訂單統計
       const [ordersToday, ordersThisWeek, ordersThisMonth, ordersThisYear] = await Promise.all([
         db.gasOrder.count({ where: { orderDate: { gte: today } } }),
         db.gasOrder.count({ where: { orderDate: { gte: weekStart } } }),
@@ -229,7 +229,7 @@ export class OrderService {
         db.gasOrder.count({ where: { orderDate: { gte: yearStart } } }),
       ]);
 
-      // 平均订单价值
+      // 平均訂單价值
       const avgOrderResult = await db.gasOrder.aggregate({
         where: {
           status: { in: ['completed', 'delivering'] },
@@ -238,7 +238,7 @@ export class OrderService {
         _avg: { total: true },
       });
 
-      // 热销产品
+      // 热销產品
       const topItems = await db.gasOrderItem.groupBy({
         by: ['productId'],
         where: {
@@ -289,16 +289,16 @@ export class OrderService {
     }
   }
 
-  // ==================== 验证方法 ====================
+  // ==================== 驗證方法 ====================
 
   /**
-   * 验证订单数据
+   * 驗證訂單數據
    */
   private async validateOrder(dto: CreateOrderDto): Promise<OrderValidationResult> {
     const errors: Array<{ field: string; message: string }> = [];
     const warnings: Array<{ field: string; message: string }> = [];
 
-    // 基本验证
+    // 基本驗證
     if (!dto.customerId) {
       errors.push({ field: 'customerId', message: 'Customer is required' });
     }
@@ -311,7 +311,7 @@ export class OrderService {
       return { valid: false, errors, warnings };
     }
 
-    // 业务验证
+    // 業務驗證
     const customer = await this.db.customer.findUnique({
       where: { id: dto.customerId },
       include: { group: true },
@@ -321,7 +321,7 @@ export class OrderService {
       errors.push({ field: 'customerId', message: 'Customer not found' });
     }
 
-    // 验证订单项
+    // 驗證訂單项
     let totalAmount = 0;
     for (const item of dto.items) {
       const product = await this.db.product.findUnique({
@@ -353,7 +353,7 @@ export class OrderService {
       totalAmount += product.price * item.quantity;
     }
 
-    // 验证支票
+    // 驗證支票
     if (dto.checkId) {
       const check = await this.db.check.findUnique({
         where: { id: dto.checkId },
@@ -374,7 +374,7 @@ export class OrderService {
       }
     }
 
-    // 验证司机
+    // 驗證司机
     if (dto.driverId) {
       const driver = await this.db.user.findUnique({
         where: { id: dto.driverId },
@@ -393,7 +393,7 @@ export class OrderService {
   }
 
   /**
-   * 验证状态转换
+   * 驗證状态转换
    */
   private async validateStatusTransition(
     currentStatus: string,
@@ -416,7 +416,7 @@ export class OrderService {
   }
 
   /**
-   * 处理状态变更后的业务逻辑
+   * 處理状态变更后的業務逻辑
    */
   private async handleStatusChange(
     order: any,
@@ -424,7 +424,7 @@ export class OrderService {
   ): Promise<void> {
     switch (order.status) {
       case 'completed':
-        // 创建配送记录
+        // 創建配送記錄
         if (!order.delivery) {
           await tx.deliveryRecord.create({
             data: {
@@ -438,7 +438,7 @@ export class OrderService {
           });
         }
 
-        // 更新月结客户的余额
+        // 更新月结客戶的余额
         if (order.customer.paymentType === 'monthly') {
           await tx.customer.update({
             where: { id: order.customerId },
@@ -450,13 +450,13 @@ export class OrderService {
         break;
 
       case 'cancelled':
-        // 库存已在 deleteOrder 中恢复
+        // 庫存已在 deleteOrder 中恢復
         break;
     }
   }
 
   /**
-   * 发送订单通知
+   * 发送訂單通知
    */
   private async sendOrderNotification(order: any): Promise<void> {
     try {

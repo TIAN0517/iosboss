@@ -4,54 +4,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**九九瓦斯行管理系統** is an iOS-optimized PWA gas station management system for elderly users in Taiwan. Built with Next.js 15, designed for large touch targets, simplified workflows, and zero-error tolerance.
+**九九瓦斯行管理系統** (BossJy-99 Gas Management System) is an iOS-optimized PWA gas station management system for elderly users in Taiwan. Built with Next.js 14, designed for large touch targets, simplified workflows, and zero-error tolerance.
+
+**Dual Architecture:**
+- **Next.js Frontend** (main app) - Deployed to Vercel or run locally
+- **Python FastAPI Service** (`line_bot_ai/`) - LINE Bot + AI + Voice features, runs in Docker
 
 ## Deployment
 
-### Docker (Production - Recommended)
+### Local Deployment (Development)
+
+**Important:** For local development, do NOT use Docker. Run services directly:
 
 ```bash
-# Using deployment script (Linux/Mac)
-./docker-deploy.sh start      # Start all services
-./docker-deploy.sh logs       # View logs
-./docker-deploy.sh status     # Check service status
-./docker-deploy.sh stop       # Stop all services
+# 1. Kill any existing processes on port 9999 (Windows)
+netstat -ano | findstr :9999
+taskkill /PID <PID> /F
 
-# Using deployment script (Windows)
-docker-deploy.bat start
-docker-deploy.bat logs
-docker-deploy.bat stop
+# 2. Start Next.js dev server (logs to dev.log)
+npm run dev    # or: bun run dev
 
-# Or using docker-compose directly
-docker-compose --env-file .env.docker up -d
+# The Python LINE Bot AI service should NOT run in Docker for local dev
+# Only use Docker for production deployment of the Python service
 ```
 
-**Services:**
-- `app`: Next.js on port 9999 (auto-runs migrations on startup)
-- `postgres`: PostgreSQL on port 5433
-- `nginx`: Reverse proxy on port 80
-- `cloudflared`: Cloudflare Tunnel for public access (optional)
-- `backup`: Automated daily database backups (optional)
-- `call-display-service`: Incoming call WebSocket service (optional)
-- `sync-websocket-service`: Real-time sync WebSocket service (optional)
+### Vercel (Production - Recommended for Next.js)
 
-**Data volumes (Docker-managed):**
-- `postgres_data` - Database
-- `gas_data` - App data
-- `nginx_cache` - Nginx cache
+The Next.js app is configured for Vercel deployment:
+- Region: Hong Kong (`hkg1`)
+- API timeouts: 60s (default), 120s for AI/voice routes
+- Install command: `npm install --legacy-peer-deps`
+
+```bash
+# Deploy to Vercel
+git push origin main  # Triggers auto-deploy if configured
+# Or use Vercel CLI: vercel --prod
+```
+
+### Docker (LINE Bot AI Service - Production Only)
+
+```bash
+# Start the LINE Bot AI service (Python FastAPI)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop service
+docker-compose down
+```
+
+**Service:**
+- `line-bot-ai`: FastAPI on port 9999 (LINE Bot, GLM-4.7 AI, voice features)
+  - GLM-4.7 MAX AI integration
+  - LINE webhook handling
+  - Voice recognition (Whisper) and synthesis
+  - Schedule/leave request parsing
+  - Health check: `/api/health`
 
 ### Local Development
 
 ```bash
-# Development server (port 9999, logs to dev.log)
+# Next.js development server (port 9999, logs to dev.log)
 # Both npm and bun work (bun has npm compatibility)
 npm run dev    # or: bun run dev
 
-# Build for production (includes copy-assets.js step)
+# Build for production
 npm run build  # or: bun run build
-
-# Start production server (standalone mode)
-npm start      # or: bun start
 
 # Database operations
 npm run db:setup     # Full setup: generate + push + seed
@@ -65,19 +84,28 @@ npm run lint         # Run ESLint
 
 ## Architecture
 
-### Tech Stack
-- **Framework**: Next.js 15 App Router (standalone output)
-- **Database**: Prisma ORM + PostgreSQL
+### Tech Stack (Next.js App)
+- **Framework**: Next.js 14 App Router
+- **Database**: Prisma ORM + PostgreSQL (Supabase for Vercel deployment)
 - **UI**: Tailwind CSS 4 + shadcn/ui (Radix)
 - **State**: Zustand + TanStack Query
 - **Icons**: Custom `<BrandIcon>` component ONLY (uses `/public/jyt.ico`)
+- **Authentication**: JWT with Web Crypto API (Edge Runtime compatible middleware)
 
-### Third-Party Integrations
+### Python FastAPI Service (`line_bot_ai/`)
+- **Framework**: FastAPI + Uvicorn
+- **AI**: GLM-4.7 MAX (zhipuai SDK)
+- **LINE Bot**: LINE Bot SDK
+- **Voice**: Whisper ASR, voice synthesis
+- **Features**: Schedule parsing, employee management, attendance, OCR
+
+### Third-Party Integrations (Next.js)
 - **Socket.IO** (`socket.io` + `socket.io-client`) - Real-time features and live updates
 - **z-ai-web-dev-sdk** - AI/voice chat features (GLM API integration)
 - **xlsx** - Excel import/export functionality
 - **@dnd-kit** - Drag and drop functionality for sortable lists
 - **bcryptjs** - Password hashing for authentication
+- **@supabase/supabase-js** - Supabase client for Vercel deployment
 
 ### Real-Time Features (Socket.IO)
 The app uses Socket.IO for real-time updates:
@@ -88,9 +116,38 @@ The app uses Socket.IO for real-time updates:
 
 Socket server is integrated with Next.js API routes.
 
+### Python Service Architecture (`line_bot_ai/`)
+
+The FastAPI service provides AI and LINE Bot features:
+
+**Key Modules:**
+- `main.py` - FastAPI app entry point, CORS, lifespan management
+- `line_webhook.py` - LINE webhook handling
+- `ai_glm47.py` - GLM-4.7 AI client
+- `voice_asr.py` - Voice recognition (Whisper)
+- `voice_tts.py` - Text-to-speech
+- `prompts.py` - AI prompt templates
+
+**App Modules:**
+- `app/main.py` - Route handlers
+- `app/ai_handler.py` - AI request processing
+- `app/asr_handler.py` - Speech recognition
+- `app/voice.py` - Voice features
+- `app/realtime_voice.py` - Real-time voice
+- `app/whisper_asr.py` - Whisper ASR
+- `app/attendance.py` - Attendance management
+- `app/employee.py` - Employee management
+- `app/leave_requests.py` - Leave request handling
+- `app/leave_schedule.py` - Schedule parsing
+- `app/flex_cards.py` - LINE Flex messages
+- `app/knowledge.py` - Knowledge base
+- `app/image_ocr.py` - Image OCR
+- `app/prompt_loader.py` - Prompt loading
+- `app/sync.py` - Data synchronization
+
 ### AI Provider Architecture
 
-The app uses a unified AI provider system (`src/lib/ai-provider.ts`) with automatic failover:
+The Next.js app uses a unified AI provider system (`src/lib/ai-provider-unified.ts`) with automatic failover:
 
 **Providers:**
 - `GLMProvider` - Primary GLM API (glm-4.7-coding-max with glm-4-flash fallback)
@@ -103,18 +160,31 @@ The app uses a unified AI provider system (`src/lib/ai-provider.ts`) with automa
 - Streaming and non-streaming chat modes
 - Provider status indicators in AI Assistant UI (Online/後備模式/離線)
 
+**Unified AI Assistant** (`src/lib/unified-ai-assistant.ts`):
+- Integrates GLM API with LINE Bot and voice chat
+- Permission system integration (`src/lib/permission-system.ts`)
+- Intent analysis and response generation for LINE Bot
+- Schedule parsing and leave request handling
+- Conversation history management
+
 **Usage:**
 ```typescript
-import { getAIManager } from '@/lib/ai-provider'
+import { getAIManager } from '@/lib/ai-provider-unified'
 
 const aiManager = getAIManager()
 const response = await aiManager.chat(message, history)
 console.log('Provider:', aiManager.getCurrentProviderName())
+
+// Or use UnifiedAIAssistant for LINE/Voice
+import { UnifiedAIAssistant } from '@/lib/unified-ai-assistant'
+const assistant = new UnifiedAIAssistant()
+const response = await assistant.processMessage(message, context)
 ```
 
 **Environment Variables:**
 - `GLM_API_KEYS` - Comma-separated API keys for load balancing
 - `GLM_API_KEY` - Single API key (legacy)
+- `GLM_MODEL` - Model name (default: `glm-4.7-coding-max`)
 
 ### Voice & Speech Features
 
@@ -370,11 +440,27 @@ The app is configured as a Progressive Web App optimized for iOS Safari:
 
 ## Authentication
 
-- JWT tokens stored in localStorage (`auth_token`, `user_name`, `user_role`)
-- Middleware passes auth headers to API routes
-- Only `role: 'admin'` can create new employee accounts via `/api/auth/register`
+### JWT Authentication Flow
 
-**Default Admin Accounts** (created by seed.ts):
+The app uses JWT authentication with Edge Runtime compatible middleware:
+
+**Middleware** (`src/middleware.ts`):
+- Uses Web Crypto API for JWT decoding (Edge Runtime compatible)
+- Validates tokens from cookies or Authorization header
+- Adds user info (`x-user-id`, `x-user-username`, `x-user-role`) to request headers
+- Public paths: `/login`, `/api/auth/*`, `/api/init`
+- API routes receive user context via headers (actual validation in API routes)
+
+**Client-side Storage:**
+- `auth_token` - JWT token
+- `user_name` - User's display name
+- `user_role` - User's role (admin, staff, driver, accountant)
+
+**API Routes:**
+- Read user info from `x-user-*` headers set by middleware
+- Perform additional validation as needed
+
+**Default Admin Accounts** (created by `prisma/seed.ts`):
 | Username | Password | Name | Role |
 |----------|----------|------|------|
 | admin | Uu19700413 | 老闆娘 | admin |
@@ -382,61 +468,146 @@ The app is configured as a Progressive Web App optimized for iOS Safari:
 | kai801129 | 520520@@ | Kai | admin |
 | tian1111 | tian1111 | Tian | admin |
 
+**Important:** Only `role: 'admin'` can create new employee accounts via `/api/auth/register`
+
 ## Environment Configuration
 
-### Docker (.env.docker)
-- `DB_AUTO_MIGRATE=true` - Auto-run Prisma migrations on startup
-- `DB_AUTO_SEED=true` - Auto-seed database on first run
-- `POSTGRES_PASSWORD` - PostgreSQL password
-- `GLM_API_KEYS` - AI service keys (comma-separated for load balancing)
+### Environment Variables (Vercel/Production)
+
+**Database:**
+- `DATABASE_URL` - PostgreSQL connection string (Supabase for Vercel)
+- `DIRECT_URL` - Direct connection URL for Supabase
+
+**JWT:**
+- `JWT_SECRET` - Secret key for JWT signing (must match `src/middleware.ts`)
+
+**AI:**
+- `GLM_API_KEYS` - Comma-separated API keys for load balancing
+- `GLM_API_KEY` - Single API key (legacy)
 - `GLM_MODEL` - Primary AI model (default: `glm-4.7-coding-max`)
-- `LINE_CHANNEL_ACCESS_TOKEN` - LINE Bot token
+
+**LINE Bot:**
+- `LINE_CHANNEL_ACCESS_TOKEN` - LINE Bot access token
 - `LINE_CHANNEL_SECRET` - LINE Bot secret for webhook verification
+
+**Supabase (Vercel deployment):**
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` - Supabase anon key
+
+**Other Services:**
 - `VOICE_PROVIDER` - Voice service provider (`eightwai` or `zero800`)
 - `VOICE_API_KEY` - Voice service API key
-- `CF_TUNNEL_TOKEN` - Cloudflare Tunnel token for public exposure
 
-### Important Build Notes
-- Build includes `copy-assets.js` step after `next build` (copies public assets)
-- TypeScript and ESLint errors are ignored during builds (see next.config.ts)
-- React Strict Mode is **disabled** - do not enable without testing
-- Output mode is `standalone` for Docker deployment
+### Python Service Environment (`line_bot_ai/`)
 
-### Startup Scripts (Docker)
-The Docker container runs a startup script that:
-1. Runs Prisma migrations if `DB_AUTO_MIGRATE=true`
-2. Seeds database if `DB_AUTO_SEED=true`
-3. Starts the Next.js server on port 9999
+The Python FastAPI service uses `config.py` to load environment variables:
 
-### Cloudflare Tunnel Deployment
-The app includes Cloudflare Tunnel for public access without port forwarding:
-- `cloudflared` container connects to Cloudflare's network
-- Traffic routes: Internet → Cloudflare → Tunnel → Nginx → Next.js app
-- Configure `CF_TUNNEL_TOKEN` in `.env.docker` from Cloudflare Zero Trust dashboard
-- Nginx handles SSL termination and reverse proxy
+Required variables (see `line_bot_ai/.env`):
+- `LINE_CHANNEL_ACCESS_TOKEN` - LINE Bot token
+- `LINE_CHANNEL_SECRET` - LINE Bot secret
+- `GLM_API_KEY` - GLM API key
+- `GLM_MODEL` - Model name (default: `glm-4.7-coding-max`)
+- `HOST` - Service host (default: `0.0.0.0`)
+- `PORT` - Service port (default: `9999`)
+- `LOG_LEVEL` - Logging level (default: `INFO`)
+- `LOG_FILE` - Log file path
+- `TMP_AUDIO_DIR` - Temporary audio directory
 
-### API Development Patterns
+### Build Configuration
+
+**Next.js (`next.config.mjs`):**
+- TypeScript errors ignored: `typescript: { ignoreBuildErrors: true }`
+- ESLint errors ignored: `eslint: { ignoreDuringBuilds: true }`
+- React Strict Mode disabled: `reactStrictMode: false`
+- Standalone output disabled for Vercel: `// output: "standalone"` (commented out)
+- Webpack path alias configured: `@` → `src`
+
+**Vercel (`vercel.json`):**
+- Framework: `nextjs`
+- Region: `hkg1` (Hong Kong)
+- Install: `npm install --legacy-peer-deps`
+- Function timeouts: 60s default, 120s for AI/voice routes
+
+### Python Service Dependencies (`line_bot_ai/requirements.txt`)
+```
+fastapi
+uvicorn
+requests
+python-dotenv
+line-bot-sdk
+zhipuai
+```
+
+**Python Docker Image:** `python:3.11-slim` with `ffmpeg` for Whisper ASR support
+
+## API Development Patterns
+
+### Next.js API Routes
+
 When creating new API routes in `src/app/api/`:
+
 ```typescript
 'use client'
 export const dynamic = 'force-dynamic'  // Always add this
 
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
-  // Get auth token from header
-  const token = request.headers.get('authorization')?.replace('Bearer ', '')
+  // Get user info from middleware headers
+  const userId = request.headers.get('x-user-id')
+  const userRole = request.headers.get('x-user-role')
 
-  // Check localStorage auth (client-side) or validate JWT
-  // ... your logic
+  // Check permissions if needed
+  if (userRole !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-  return NextResponse.json({ data: 'response' })
+  // Your logic here
+  const data = await db.customer.findMany()
+
+  return NextResponse.json({ data })
 }
+```
+
+### Python FastAPI Routes
+
+When adding routes to the Python service:
+
+```python
+from fastapi import APIRouter, Request
+from line_bot_ai.config import config
+
+router = APIRouter(prefix="/api/your-feature", tags=["your-feature"])
+
+@router.post("/action")
+async def your_action(request: Request):
+    # Access config
+    api_key = config.GLM_API_KEY
+
+    # Your logic here
+    return {"success": True}
+```
+
+Then register in `main.py`:
+```python
+from your_module import router as your_router
+app.include_router(your_router)
 ```
 
 ## Troubleshooting
 
-### Common Issues
+### Local Development Issues
+- **Port 9999 already in use**: Kill the process before starting dev server
+  ```bash
+  # Windows: Find and kill process on port 9999
+  netstat -ano | findstr :9999
+  taskkill /PID <PID> /F
+  ```
+- **Don't use Docker for local development**: Run `npm run dev` directly, not via docker-compose
+- **Changes not reflecting**: Make sure to kill and restart the dev server after code changes
+
+### Common Issues (Next.js)
 - **Icons not showing**: Use `<BrandIcon>` instead of any Flame icon from lucide-react
 - **Haptics not working**: Import from `@/lib/ios-utils` and call `triggerHaptic()`
 - **Gestures not responding**: Make sure to spread the gesture props (`{...swipeGestureProps}`) onto your touchable elements
@@ -445,13 +616,91 @@ export async function GET(request: NextRequest) {
 - **Mobile navigation**: Uses client-side state (`activeSection`), not Next.js routing
 - **Auth redirects**: Check localStorage for `auth_token`, `user_name`, `user_role`
 
-### Docker Issues
-- **Container won't start**: Check Docker logs with `docker logs jyt-gas-app`
-- **Database connection errors**: Ensure postgres container is healthy first
-- **Port conflicts**: The app uses port 9999, PostgreSQL uses 5433 externally
-- **Migration failures**: Check `DB_AUTO_MIGRATE` and `DB_AUTO_SEED` in `.env.docker`
+### Docker Issues (Python Service)
+- **Container won't start**: Check Docker logs with `docker-compose logs line-bot-ai`
+- **LINE webhook not working**: Verify `LINE_CHANNEL_ACCESS_TOKEN` and `LINE_CHANNEL_SECRET`
+- **AI not responding**: Check `GLM_API_KEY` is valid and `GLM_MODEL` is accessible
+- **Port conflicts**: The service uses port 9999
 
 ### Build Issues
-- **TypeScript errors during build**: These are ignored by default (see next.config.ts)
-- **Assets not copying**: The `copy-assets.js` script runs after `next build`
-- **Standalone output missing**: Ensure `output: "standalone"` in next.config.ts
+- **TypeScript errors during build**: These are ignored by default (see next.config.mjs)
+- **Vercel deployment fails**: Check that `installCommand` uses `--legacy-peer-deps`
+- **Environment variables not available**: Verify all required vars are set in Vercel dashboard
+
+### Authentication Issues
+- **Middleware JWT mismatch**: The JWT secret in `src/middleware.ts` (hardcoded as `9hg8PlHMFswnN7FZyfxHOagwqyJ87lZVXQFDKRBc+GY=`) must match your `JWT_SECRET` environment variable
+- **Middleware runs on Edge Runtime**: Cannot read .env files directly, hence the hardcoded secret. If you change JWT_SECRET, you must update `src/middleware.ts` line 11
+- **401 errors on API routes**: Check that middleware is setting `x-user-*` headers correctly
+- **Login not persisting**: Verify cookies are being set and browser is not blocking them
+
+### Database Issues
+- **Prisma client not generated**: Run `npm run db:generate`
+- **Migration conflicts**: Use `npm run db:push` for development instead of migrations
+- **Connection pool exhausted**: Check DATABASE_URL has proper pooling configuration for Supabase
+
+## Key Library Files
+
+### Core Libraries (`src/lib/`)
+
+These files contain critical business logic and utilities:
+
+- **`db.ts`** - Prisma client singleton (must use this for all DB operations)
+- **`ios-utils.ts`** - iOS-specific utilities:
+  - Device detection (`isIOS()`, `isIPad()`, `isIPhone()`)
+  - Haptic feedback (`triggerHaptic()`, `triggerHapticSequence()`, `triggerAdaptiveHaptic()`)
+  - Gesture hooks (`useSwipeGesture()`, `useLongPress()`, `usePinchGesture()`, etc.)
+  - Safe area utilities (`getSafeAreaInsets()`, `getStatusBarHeight()`)
+  - Keyboard utilities (`dismissKeyboard()`, `isKeyboardOpen()`)
+
+- **`ai-provider-unified.ts`** - Unified AI provider management:
+  - Multi-provider support (GLM, local fallback)
+  - Load balancing across multiple API keys
+  - Retry logic with exponential backoff
+  - Streaming and non-streaming modes
+
+- **`unified-ai-assistant.ts`** - High-level AI assistant:
+  - Integrates AI with LINE Bot and voice features
+  - Permission system integration
+  - Intent analysis and response generation
+  - Schedule and leave request parsing
+
+- **`permission-system.ts`** - User permission management:
+  - Role-based access control
+  - Group permissions (LINE groups)
+  - User context retrieval
+
+- **`voice-correction.ts`** - Voice recognition error correction:
+  - Common word mapping for Taiwan gas industry
+  - Number conversions (台 -> 桶)
+  - Simplified to Traditional Chinese conversion
+
+- **`line-bot-intent.ts`** - LINE Bot intent analysis
+- **`line-bot-response.ts`** - LINE Bot response generation
+- **`line-group-manager.ts`** - LINE group management
+- **`line-customer-linker.ts`** - LINE user to customer linking
+- **`schedule-parser.ts`** - Employee schedule/leave parsing
+- **`notification-service.ts`** - Notification sending service
+
+### Important API Routes (`src/app/api/`)
+
+Key endpoints to understand:
+
+- **`/api/auth/*`** - Authentication (login, register, logout, me)
+- **`/api/ai/chat`** - AI chat endpoint (streaming and non-streaming)
+- **`/api/voice/*`** - Voice features (STT, TTS)
+- **`/api/customers`** - Customer CRUD
+- **`/api/orders`** - Order management
+- **`/api/inventory`** - Inventory management
+- **`/api/init`** - Database initialization
+- **`/api/webhook/line`** - LINE Bot webhook (Next.js side)
+
+### Python Service Key Files (`line_bot_ai/`)
+
+- **`config.py`** - Configuration management with validation
+- **`main.py`** - FastAPI app setup with CORS and lifespan
+- **`line_webhook.py`** - LINE webhook router
+- **`ai_glm47.py`** - GLM-4.7 AI client
+- **`app/main.py`** - Main route handlers
+- **`app/ai_handler.py`** - AI request processing
+- **`app/leave_schedule.py`** - Schedule parsing logic
+- **`app/flex_cards.py`** - LINE Flex message templates

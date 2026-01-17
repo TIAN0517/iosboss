@@ -1,6 +1,7 @@
 /**
  * 自然語音合成 (Natural Text-to-Speech)
  * 使用端到端語音模式，讓 AI 助手說話更自然人性化
+ * 優化模仿豆包的語音風格：親切、自然、富有情感
  */
 
 export type TTSProvider = 'browser' | 'openai' | 'elevenlabs' | 'azure' | 'glm'
@@ -10,10 +11,10 @@ export type TTSProvider = 'browser' | 'openai' | 'elevenlabs' | 'azure' | 'glm'
  * 官方文檔: https://docs.bigmodel.cn/api-reference/模型-api/文本转语音
  */
 export const GLM_TTS_VOICES = {
-  'tongtong': '彤彤 (默認音色)',
-  'chuichui': '錘錘',
-  'xiaochen': '小陳',
-  'jam': '動動動物圈',
+  'tongtong': '彤彤 (默認音色 - 年輕女性)',
+  'chuichui': '錘錘 (男性)',
+  'xiaochen': '小陳 (男性)',
+  'jam': '動動動物圈 (可愛風)',
 } as const
 
 export type GLMTTSVoice = keyof typeof GLM_TTS_VOICES
@@ -28,13 +29,16 @@ export interface NaturalVoiceConfig {
   useProsody?: boolean  // 使用語調變化
   useBreathing?: boolean // 添加呼吸停頓
   useEmotion?: boolean   // 情感化語音
+  // 豆包風格參數
+  douBaoStyle?: boolean  // 啟用豆包風格（更親切自然）
 }
 
 export interface TTSSegment {
   text: string
   pause?: number  // 停頓毫秒數
-  emotion?: 'neutral' | 'happy' | 'concerned' | 'excited'
+  emotion?: 'neutral' | 'happy' | 'concerned' | 'excited' | 'gentle'
   speed?: number
+  emphasis?: number[]  // 需要強調的字符索引
 }
 
 /**
@@ -61,66 +65,162 @@ export class NaturalTTS {
   }
 
   /**
-   * 智能分段 - 將長文本分成自然的語音段落
+   * 豆包風格文本預處理 - 更自然的表達方式
    */
-  private smartSegment(text: string): TTSSegment[] {
-    // 清理文本
-    const cleanText = text
-      .replace(/```json\s*([\s\S]*?)\s*```/g, '') // 移除代碼塊
-      .replace(/\*\*/g, '') // 移除粗體標記
-      .replace(/#{1,6}\s/g, '') // 移除標題
-      .trim()
+  private preprocessTextDouBaoStyle(text: string): string {
+    // 添加自然語氣詞
+    let processed = text
+      .replace(/好的/g, '好的呢')
+      .replace(/沒問題/g, '沒問題喔')
+      .replace(/知道了/g, '知道啦')
+      .replace(/請/g, '麻煩')
+      .replace(/謝謝/g, '謝謝您')
+      .replace(/對不起/g, '不好意思')
 
-    const segments: TTSSegment[] = []
-
-    // 按標點符號分段
-    const sentences = cleanText.split(/([。！？\n]+)/).filter(s => s.trim())
-
-    let currentSegment = ''
-
-    for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i]
-      currentSegment += sentence
-
-      // 判斷是否應該分段
-      const isEnd = sentence.match(/[。！？]/)
-      const isBreak = sentence.includes('\n')
-
-      if (isEnd || isBreak) {
-        segments.push({
-          text: currentSegment.trim(),
-          pause: isBreak ? 800 : 400, // 換行停頓更長
-          emotion: this.detectEmotion(currentSegment),
-          speed: this.detectSpeed(currentSegment),
-        })
-        currentSegment = ''
+    // 添加友善的結尾語氣詞（如果還沒有）
+    if (!processed.match(/[喔呢吧呀啦]$/)) {
+      if (processed.includes('幫助') || processed.includes('協助')) {
+        processed += '喔'
+      } else if (processed.includes('確認') || processed.includes('知道')) {
+        processed += '呢'
+      } else if (processed.match(/[\。\?]$/)) {
+        processed = processed.replace(/[\。\?]$/, '～')
       }
     }
 
-    if (currentSegment.trim()) {
-      segments.push({
-        text: currentSegment.trim(),
-        emotion: 'neutral',
-      })
-    }
-
-    return segments
+    return processed
   }
 
   /**
-   * 檢測情感
+   * 智能分段 - 豆包風格（更細緻的分段，模擬自然呼吸）
+   */
+  private smartSegment(text: string): TTSSegment[] {
+    // 清理文本
+    let cleanText = text
+      .replace(/```json\s*([\s\S]*?)\s*```/g, '') // 移除代碼塊
+      .replace(/```\s*([\s\S]*?)\s*```/g, '') // 移除其他代碼塊
+      .replace(/\*\*/g, '') // 移除粗體標記
+      .replace(/#{1,6}\s/g, '') // 移除標題
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 移除 markdown 連結
+      .trim()
+
+    // 如果啟用豆包風格，進行文本預處理
+    if (this.config.douBaoStyle) {
+      cleanText = this.preprocessTextDouBaoStyle(cleanText)
+    }
+
+    const segments: TTSSegment[] = []
+
+    // 按更細緻的標點符號分段（包括逗號、頓號）
+    // 使用正則表達式匹配所有標點符號，但保留連貫性
+    const sentenceGroups = cleanText.split(/([。！？；\n]+)/)
+    const segmentsList: string[] = []
+
+    for (let i = 0; i < sentenceGroups.length; i++) {
+      const part = sentenceGroups[i]
+      const isMajorBreak = sentenceGroups[i + 1]?.match(/[。！？；\n]/)
+
+      if (part.trim()) {
+        // 對於較長的句子，按逗號進行二次分割
+        if (part.length > 15 && part.includes('，')) {
+          const subParts = part.split(/(，)/)
+          let tempSentence = ''
+
+          for (let j = 0; j < subParts.length; j++) {
+            const subPart = subParts[j]
+            tempSentence += subPart
+
+            if (subPart === '，' || j === subParts.length - 1) {
+              if (tempSentence.trim()) {
+                segmentsList.push(tempSentence.trim())
+              }
+              tempSentence = ''
+            }
+          }
+        } else {
+          segmentsList.push(part.trim())
+        }
+      }
+
+      if (isMajorBreak) {
+        i++ // 跳過標點符號本身
+      }
+    }
+
+    // 將分段轉換為帶語音參數的段落
+    for (const segmentText of segmentsList) {
+      if (!segmentText) continue
+
+      // 檢測停頓長度
+      let pause = 200
+      const endsWithComma = segmentText.endsWith('，') || segmentText.endsWith('、')
+      const endsWithPeriod = segmentText.endsWith('。') || segmentText.endsWith('！') || segmentText.endsWith('？')
+      const endsWithMajor = segmentText.endsWith('；') || segmentText.endsWith('\n')
+
+      if (endsWithComma) pause = 300
+      else if (endsWithPeriod) pause = 500
+      else if (endsWithMajor) pause = 700
+
+      // 豆包風格：更自然的停頓
+      if (this.config.douBaoStyle) {
+        if (endsWithComma) pause = 350
+        else if (endsWithPeriod) pause = 600
+        else if (endsWithMajor) pause = 800
+      }
+
+      segments.push({
+        text: segmentText.replace(/[，。！？；、\n]/g, ''), // 移除標點用於語音
+        pause,
+        emotion: this.detectEmotion(segmentText),
+        speed: this.detectSpeed(segmentText),
+        emphasis: this.detectEmphasis(segmentText),
+      })
+    }
+
+    return segments.filter(s => s.text.length > 0)
+  }
+
+  /**
+   * 檢測情感 - 豆包風格（更細緻的情感分類）
    */
   private detectEmotion(text: string): TTSSegment['emotion'] {
-    if (text.includes('✅') || text.includes('成功') || text.includes('幫您')) {
-      return 'happy'
+    // 檢測親切友善的內容
+    if (text.includes('✅') || text.includes('成功') || text.includes('幫您') ||
+        text.includes('好的呢') || text.includes('喔') || text.includes('～')) {
+      return 'gentle' // 溫柔語氣
     }
-    if (text.includes('⚠️') || text.includes('提醒') || text.includes('注意')) {
-      return 'concerned'
-    }
-    if (text.includes('🌟') || text.includes('真厲害') || text.includes('太棒')) {
+
+    // 檢測開心興奮
+    if (text.includes('🌟') || text.includes('真厲害') || text.includes('太棒') ||
+        text.includes('讚') || text.includes('耶')) {
       return 'excited'
     }
+
+    // 檢測提醒注意
+    if (text.includes('⚠️') || text.includes('提醒') || text.includes('注意') ||
+        text.includes('小心') || text.includes('危險')) {
+      return 'concerned'
+    }
+
     return 'neutral'
+  }
+
+  /**
+   * 檢測需要強調的部分（重點詞）
+   */
+  private detectEmphasis(text: string): number[] {
+    const emphasisIndices: number[] = []
+    const emphasisWords = ['非常', '特別', '最重要', '必須', '一定', '請', '謝謝']
+
+    for (const word of emphasisWords) {
+      let index = text.indexOf(word)
+      while (index !== -1) {
+        emphasisIndices.push(index)
+        index = text.indexOf(word, index + 1)
+      }
+    }
+
+    return emphasisIndices
   }
 
   /**
@@ -128,14 +228,22 @@ export class NaturalTTS {
    */
   private detectSpeed(text: string): number {
     // 數字和特殊符號讀慢一點
-    if (text.match(/[0-9]/g) && text.match(/[0-9]/g)!.length > 3) {
-      return 0.85
+    const numberCount = (text.match(/[0-9]/g) || []).length
+    if (numberCount > 3) return 0.85
+
+    // 英文內容稍快
+    if (/[a-zA-Z]{5,}/.test(text)) return 1.05
+
+    // 豆包風格：整體稍慢，更親切
+    if (this.config.douBaoStyle) {
+      return 0.92
     }
+
     return 1.0
   }
 
   /**
-   * 使用瀏覽器原生語音合成（優化版）
+   * 使用瀏覽器原生語音合成（豆包風格優化版）
    */
   private async speakWithBrowser(segments: TTSSegment[]): Promise<void> {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -163,20 +271,35 @@ export class NaturalTTS {
 
       // 設置語音
       utterance.voice = voice
-      utterance.rate = (segment.speed || this.config.rate || 1.0) * 0.95 // 稍微放慢，更自然
-      utterance.pitch = this.config.pitch || 1.05 // 稍微高音，更親切
-      utterance.volume = 1.0
 
-      // 設置語調變化
-      if (segment.emotion === 'happy') {
-        utterance.pitch = 1.15
-        utterance.rate = 1.05
+      // 豆包風格參數調整
+      const baseRate = segment.speed || this.config.rate || 1.0
+      const basePitch = this.config.pitch || 1.0
+
+      if (this.config.douBaoStyle) {
+        // 豆包風格：稍慢、稍高音、更親切
+        utterance.rate = baseRate * 0.9 // 稍慢更親切
+        utterance.pitch = basePitch * 1.08 // 稍高更年輕
+        utterance.volume = 1.0
+      } else {
+        utterance.rate = baseRate * 0.95
+        utterance.pitch = basePitch * 1.05
+        utterance.volume = 1.0
+      }
+
+      // 設置語調變化 - 豆包風格
+      if (segment.emotion === 'gentle') {
+        utterance.pitch = basePitch * 1.12
+        utterance.rate = baseRate * 0.95
+      } else if (segment.emotion === 'happy') {
+        utterance.pitch = basePitch * 1.15
+        utterance.rate = baseRate * 1.05
       } else if (segment.emotion === 'concerned') {
-        utterance.pitch = 0.95
-        utterance.rate = 0.9
+        utterance.pitch = basePitch * 0.95
+        utterance.rate = baseRate * 0.9
       } else if (segment.emotion === 'excited') {
-        utterance.pitch = 1.2
-        utterance.rate = 1.1
+        utterance.pitch = basePitch * 1.2
+        utterance.rate = baseRate * 1.08
       }
 
       await new Promise<void>((resolve, reject) => {
@@ -195,28 +318,59 @@ export class NaturalTTS {
   }
 
   /**
-   * 選擇最佳語音
+   * 選擇最佳語音 - 豆包風格（優先選擇年輕女性聲音）
    */
   private selectBestVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-    // 優先順序：
-    // 1. 中文女聲
-    // 2. 中文語音
-    // 3. 台灣繁體中文
-    // 4. 任何中文語音
-    // 5. 第一個可用語音
+    // 豆包風格優先順序：
+    // 1. 台灣國語女聲（最親切）
+    // 2. 簡體中文女聲
+    // 3. "Google" 或 "Microsoft" 的中文語音（品質較好）
+    // 4. 其他中文女聲
+    // 5. 任何中文語音
+    // 6. 第一個可用語音
 
+    // 台灣女聲 - 最佳選擇
     const taiwanFemale = voices.find(v =>
-      v.lang === 'zh-TW' && v.name.includes('女')
+      v.lang === 'zh-TW' && (v.name.includes('女') || v.name.includes('Female'))
     )
 
+    // 簡體中文女聲
     const chineseFemale = voices.find(v =>
-      v.lang.startsWith('zh') && (v.name.includes('Female') || v.name.includes('女'))
+      v.lang.startsWith('zh') && (v.name.includes('女') || v.name.includes('Female'))
     )
 
+    // Google 繁體中文（品質好）
+    const googleTaiwan = voices.find(v =>
+      v.lang === 'zh-TW' && v.name.includes('Google')
+    )
+
+    // Microsoft 繁體中文（品質好）
+    const microsoftTaiwan = voices.find(v =>
+      v.lang === 'zh-TW' && v.name.includes('Microsoft')
+    )
+
+    // 台灣語音（不限性別）
     const taiwanVoice = voices.find(v => v.lang === 'zh-TW')
+
+    // 簡體中文 Google
+    const googleChinese = voices.find(v =>
+      v.lang.startsWith('zh') && v.name.includes('Google')
+    )
+
+    // 任何中文語音
     const chineseVoice = voices.find(v => v.lang.startsWith('zh'))
 
-    return taiwanFemale || chineseFemale || taiwanVoice || chineseVoice || voices[0] || null
+    return (
+      taiwanFemale ||
+      googleTaiwan ||
+      microsoftTaiwan ||
+      chineseFemale ||
+      taiwanVoice ||
+      googleChinese ||
+      chineseVoice ||
+      voices[0] ||
+      null
+    )
   }
 
   /**
@@ -259,6 +413,9 @@ export class NaturalTTS {
         source.onended = () => resolve()
       })
     }
+
+    // Fallback if audioContext is not available
+    return Promise.resolve()
   }
 
   /**
@@ -313,11 +470,13 @@ export class NaturalTTS {
       source.connect(this.audioContext.destination)
       source.start()
 
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         source.onended = () => resolve()
-        source.onerror = (e) => reject(e)
       })
     }
+
+    // Fallback if audioContext is not available
+    return Promise.resolve()
   }
 
   /**

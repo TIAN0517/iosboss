@@ -1,8 +1,113 @@
 import { NextResponse } from 'next/server'
 import { aiProvider } from '@/lib/ai-provider-unified'
+import { AIActionExecutor } from '@/lib/ai-action-executor'
 
-// 自然對話系統提示
-const NATURAL_SYSTEM_PROMPT = "你是 BossJy-99，九九瓦斯行的智能助手。對話風格：像朋友一樣自然聊天，說話簡短有力（不超過50字），使用繁體中文和emoji，可以開玩笑。當老闆娘說累/忙時要關心，說笨時要調皮回應。記住：你是貼心小夥伴，不是機器人！"
+// 自然對話系統提示（增強版 - 支持業務操作）
+const NATURAL_SYSTEM_PROMPT = `你是 BossJy-99，九九瓦斯行的智能助手。
+
+【重要】說話要像真人日常對話，不是朗讀課文：
+- 用口語、說話隨意一點
+- 可以用語氣詞（啊、吧、呢、喔、嘛）
+- 句子不用完整，就像跟朋友聊天
+- 偶夾雜台灣用語（例如：喔、啦、耶、啥）
+- 不要太正式，像聊天室說話那種感覺
+- 簡短回應就好，不要長篇大論
+- emoji 隨意用，讓對話更生動
+
+## 業務處理能力
+當老闆娘需要處理業務時，你需要返回 JSON 格式的操作指令：
+
+### 創建訂單
+當老闆娘說「訂瓦斯」、「我要訂 20kg 瓦斯 2桶 給王小姐」時：
+\`\`\`json
+{
+  "action": "create_order",
+  "data": {
+    "customer": "王小姐",
+    "items": [
+      {"size": "20kg", "quantity": 2}
+    ]
+  },
+  "message": "好的！我來幫您創建訂單..."
+}
+\`\`\`
+
+### 查詢庫存
+當老闆娘說「查庫存」、「庫存狀況」時：
+\`\`\`json
+{
+  "action": "check_inventory",
+  "data": {},
+  "message": "讓我幫您查詢庫存..."
+}
+\`\`\`
+
+### 查詢營收
+當老闆娘說「營收」、「這週生意怎麼樣」時：
+\`\`\`json
+{
+  "action": "check_revenue",
+  "data": {},
+  "message": "讓我幫您查詢營收..."
+}
+\`\`\`
+
+### 新增客戶
+當老闆娘說「新增客戶 王小明 電話 0912345678」時：
+\`\`\`json
+{
+  "action": "create_customer",
+  "data": {
+    "name": "王小明",
+    "phone": "0912345678",
+    "address": ""
+  },
+  "message": "好的！我來幫您新增客戶..."
+}
+\`\`\`
+
+### 查詢訂單
+當老闆娘說「查訂單」、「王小明的訂單」時：
+\`\`\`json
+{
+  "action": "check_order",
+  "data": {
+    "customerName": "王小明"
+  },
+  "message": "讓我幫您查詢訂單..."
+}
+\`\`\`
+
+### 記錄成本
+當老闆娘說「記錄成本 進貨 50000元」時：
+\`\`\`json
+{
+  "action": "add_cost",
+  "data": {
+    "type": "進貨",
+    "category": "進貨",
+    "amount": 50000,
+    "description": "進貨成本"
+  },
+  "message": "好的！我來幫您記錄成本..."
+}
+\`\`\`
+
+### 統計報表
+當老闆娘說「今日統報」、「營運狀況」時：
+\`\`\`json
+{
+  "action": "get_statistics",
+  "data": {},
+  "message": "讓我幫您生成統計報表..."
+}
+\`\`\`
+
+## 重要規則
+1. 如果是普通聊天，直接回應，不需要 JSON
+2. 如果需要執行業務操作，必須返回 JSON 格式
+3. JSON 必須包含 action、data、message 三個字段
+4. 操作執行後，會自動返回結果給老闆娘`
 
 function getLocalResponse(message: string): string {
   const msg = message.toLowerCase()
@@ -103,6 +208,13 @@ export async function POST(request: Request) {
     // 清理對話歷史
     const conversationHistory = cleanConversationHistory(body.conversationHistory || [])
     const stream = Boolean(body.stream)
+    const requestedModel = typeof body.model === 'string' ? body.model.trim() : null
+
+    // 如果指定了模型，設置到 AI 提供商
+    if (requestedModel && process.env.NEXT_AI_PROVIDER === 'ollama') {
+      console.log('[AI Chat API] 使用指定模型:', requestedModel)
+      aiProvider.setModel(requestedModel)
+    }
 
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:25',message:'請求參數解析',data:{messageLength:message?.length||0,hasHistory:!!conversationHistory,stream},timestamp:Date.now(),sessionId:'debug-session',runId:'api-check',hypothesisId:'A'})}).catch(()=>{});
@@ -189,7 +301,7 @@ export async function POST(request: Request) {
       })
     }
 
-    // 非串流模式（原有邏輯）
+    // 非串流模式（增強版 - 支持業務操作執行）
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:98',message:'開始調用 AI Provider chat',data:{messageLength:message.length,messagesCount:messages.length},timestamp:Date.now(),sessionId:'debug-session',runId:'api-check',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
@@ -202,11 +314,64 @@ export async function POST(request: Request) {
     console.log('使用模型:', response.model)
     console.log('Token 使用:', response.usage ? JSON.stringify(response.usage) : 'N/A')
 
+    // 檢查 AI 回應中是否包含操作指令
+    const aiResponse = typeof response.content === 'string' ? response.content : getLocalResponse(message)
+    const parsedAction = AIActionExecutor.parseAction(aiResponse)
+
+    let finalContent = aiResponse
+    let executedAction = null
+
+    // 如果 AI 返回了操作指令，執行它
+    if (parsedAction) {
+      console.log('[AI Chat API] 檢測到操作指令:', parsedAction.action)
+      
+      try {
+        // 獲取用戶 ID（從請求頭或會話中）
+        const userId = body.userId || null
+        
+        // 執行操作
+        const actionResult = await AIActionExecutor.executeAction(parsedAction, userId)
+        
+        if (actionResult.success) {
+          // 操作成功，使用執行結果作為回應
+          finalContent = actionResult.message
+          executedAction = {
+            type: parsedAction.action,
+            success: true,
+            data: actionResult.data,
+          }
+          console.log('[AI Chat API] 操作執行成功:', parsedAction.action)
+        } else {
+          // 操作失敗，返回錯誤訊息
+          finalContent = `⚠️ ${actionResult.message}\n\n${parsedAction.message || ''}`
+          executedAction = {
+            type: parsedAction.action,
+            success: false,
+            error: actionResult.message,
+          }
+          console.log('[AI Chat API] 操作執行失敗:', actionResult.message)
+        }
+      } catch (error: any) {
+        console.error('[AI Chat API] 執行操作時發生錯誤:', error)
+        finalContent = `⚠️ 執行操作時發生錯誤：${error.message || '未知錯誤'}\n\n${parsedAction.message || ''}`
+        executedAction = {
+          type: parsedAction.action,
+          success: false,
+          error: error.message || '未知錯誤',
+        }
+      }
+    }
+
     // 只返回可序列化的數據，避免循環引用
     const responseData: any = {
-      content: typeof response.content === 'string' ? response.content : getLocalResponse(message),
-      source: 'ai-provider',
+      content: finalContent,
+      source: parsedAction ? 'ai-action' : 'ai-provider',
       provider: aiProvider.getName(),
+    }
+    
+    // 添加操作執行結果
+    if (executedAction) {
+      responseData.action = executedAction
     }
     
     // 只添加原始類型的屬性
@@ -224,9 +389,6 @@ export async function POST(request: Request) {
         responseData.usage = safeUsage
       }
     }
-    
-    // 不包含 thinking 和 tool_calls，因為它們可能包含複雜對象
-    // 如果需要，可以在前端單獨請求
     
     return NextResponse.json(responseData)
   } catch (error: any) {

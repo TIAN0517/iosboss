@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 # Cloudflare API 配置
-$CF_API_TOKEN = "Q7cgsne5ZfGoIH9-oWr6SJS7gYt56UwNd8V2WcrC"
+$CF_API_TOKEN = "IwCAPTnVsuW-2T5nvwN-r2KXqPtkgO0iWAJhsgPI"
 $CF_ACCOUNT_ID = "294ea8539d4d17934ce09438d7c01967"
 $CF_ZONE_NAME = "jytian.it.com"
 $TUNNEL_NAME = "jyt-gas-tunnel"

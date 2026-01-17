@@ -46,6 +46,7 @@ import {
   Grid3x3,
   FileSpreadsheet,
   Sparkles,
+  Calendar,
 } from 'lucide-react'
 import { CustomerManagement } from '@/components/CustomerManagement'
 import { OrderManagement } from '@/components/OrderManagement'
@@ -62,13 +63,18 @@ import { LineBotManagement } from '@/components/LineBotManagement'
 import { AIAssistant } from '@/components/AIAssistant'
 import { ExcelExportTool } from '@/components/ExcelExportTool'
 import { ChatSection } from '@/components/ChatSection'
+import { DatabaseManagement } from '@/components/DatabaseManagement'
 import { SmartAlerts, AlertBadge } from '@/components/SmartAlerts'
 import { QuickActions } from '@/components/QuickActions'
 import { VoiceQuickQuery } from '@/components/VoiceQuickQuery'
 import { DriverDeliveryApp } from '@/components/DriverDeliveryApp'
-import { triggerHaptic } from '@/lib/ios-utils'
+import { ScheduleManagement } from '@/components/ScheduleManagement'
+import { triggerHaptic, useEdgeSwipe, usePullToRefresh } from '@/lib/ios-utils'
+import { AnimatePresence } from 'framer-motion'
+import { IOSSlideTransition } from '@/components/ui/page-transition'
+import { PullToRefreshIndicator, EdgeSwipeIndicator } from '@/components/ui/pull-to-refresh'
 
-type Section = 'dashboard' | 'customers' | 'orders' | 'inventory' | 'checks' | 'costs' | 'marketing' | 'reports' | 'meter' | 'staff' | 'calls' | 'monthly' | 'linebot' | 'excel-export' | 'chat'
+type Section = 'dashboard' | 'customers' | 'orders' | 'inventory' | 'checks' | 'costs' | 'marketing' | 'reports' | 'meter' | 'staff' | 'calls' | 'monthly' | 'linebot' | 'excel-export' | 'chat' | 'schedules' | 'database'
 
 const menuItems = [
   { id: 'dashboard' as Section, icon: LayoutDashboard, label: '首頁', color: 'text-emerald-600', description: '儀表板總覽' },
@@ -78,6 +84,7 @@ const menuItems = [
   { id: 'checks' as Section, icon: CheckSquare, label: '支票', color: 'text-pink-600', description: '支票登記記錄' },
   { id: 'meter' as Section, icon: Calculator, label: '抄錶', color: 'text-cyan-600', description: '管線瓦斯抄錶' },
   { id: 'staff' as Section, icon: UsersIcon, label: '員工', color: 'text-indigo-600', description: '員工資訊管理' },
+  { id: 'schedules' as Section, icon: Calendar, label: '休假表', color: 'text-violet-600', description: '休假表審核管理' },
   { id: 'costs' as Section, icon: DollarSign, label: '成本', color: 'text-green-600', description: '成本利潤分析' },
   { id: 'monthly' as Section, icon: FileText, label: '月結', color: 'text-amber-600', description: '月結報表生成' },
   { id: 'calls' as Section, icon: PhoneCall, label: '來電', color: 'text-rose-600', description: '來電記錄查詢' },
@@ -86,6 +93,7 @@ const menuItems = [
   { id: 'excel-export' as Section, icon: FileSpreadsheet, label: 'Excel', color: 'text-teal-600', description: '會計報表導出' },
   { id: 'linebot' as Section, icon: MessageCircle, label: 'LINE', color: 'text-green-500', description: 'LINE Bot 設定' },
   { id: 'chat' as Section, icon: Sparkles, label: 'AI 助手', color: 'text-purple-500', description: '智能 AI 對話' },
+  { id: 'database' as Section, icon: Settings, label: '數據庫', color: 'text-slate-600', description: '數據庫管理' },
 ]
 
 // 底部 Tab 導航的項目
@@ -100,6 +108,9 @@ const tabItems = [
 // 禁用預渲染以避免服務端渲染問題
 export const dynamic = 'force-dynamic'
 
+// 導航歷史堆棧（用於邊緣滑動返回）
+const navigationHistory: Section[] = ['dashboard']
+
 export default function GasManagementSystem() {
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -111,6 +122,58 @@ export default function GasManagementSystem() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // 邊緣滑動返回手勢
+  const { edgeSwipeProps, isDragging: isEdgeDragging } = useEdgeSwipe(() => {
+    // 返回到上一個頁面或首頁
+    if (navigationHistory.length > 1) {
+      navigationHistory.pop()
+      const previousSection = navigationHistory[navigationHistory.length - 1] || 'dashboard'
+      setActiveSection(previousSection)
+    } else if (activeSection !== 'dashboard') {
+      setActiveSection('dashboard')
+    }
+  })
+
+  // 下拉刷新手勢
+  const handleRefresh = async () => {
+    setRefreshKey(prev => prev + 1)
+    // 刷新當前頁面的邏輯由各個組件自行處理
+    window.dispatchEvent(new CustomEvent('refreshData'))
+  }
+
+  const {
+    pullToRefreshProps,
+    isPulling,
+    pullDistance,
+    isRefreshing,
+    canRefresh,
+  } = usePullToRefresh(handleRefresh)
+
+  // 更新導航歷史
+  useEffect(() => {
+    if (activeSection !== navigationHistory[navigationHistory.length - 1]) {
+      navigationHistory.push(activeSection)
+    }
+  }, [activeSection])
+
+  // 更新 iOS 狀態欄時間
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date()
+      const hours = now.getHours().toString().padStart(2, '0')
+      const minutes = now.getMinutes().toString().padStart(2, '0')
+      const timeElement = document.getElementById('ios-time')
+      if (timeElement) {
+        timeElement.textContent = `${hours}:${minutes}`
+      }
+    }
+
+    updateTime()
+    const interval = setInterval(updateTime, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   // 檢查登入狀態 - 優先從 localStorage，再從 API 獲取
   useEffect(() => {
@@ -189,65 +252,111 @@ export default function GasManagementSystem() {
   }
 
   const renderSection = () => {
-    switch (activeSection) {
-      case 'customers':
-        return <CustomerManagement />
-      case 'orders':
-        return <OrderManagement />
-      case 'inventory':
-        return <InventoryManagement />
-      case 'checks':
-        return <CheckManagement />
-      case 'meter':
-        return <MeterReadingManagement />
-      case 'staff':
-        return <StaffManagement />
-      case 'costs':
-        return <CostAnalysis />
-      case 'monthly':
-        return <MonthlyStatementPage />
-      case 'calls':
-        return <CallRecordsPage />
-      case 'marketing':
-        return <MarketingManagement />
-      case 'reports':
-        return <ReportsAnalysis />
-      case 'linebot':
-        return <LineBotManagement />
-      case 'excel-export':
-        return <ExcelExportTool />
-      case 'chat':
-        return <ChatSection />
-      case 'dashboard':
-      default:
-        return <DashboardSection setActiveSection={setActiveSection} />
-    }
+    const content = (() => {
+      switch (activeSection) {
+        case 'customers':
+          return <CustomerManagement key={`customers-${refreshKey}`} />
+        case 'orders':
+          return <OrderManagement key={`orders-${refreshKey}`} />
+        case 'inventory':
+          return <InventoryManagement key={`inventory-${refreshKey}`} />
+        case 'checks':
+          return <CheckManagement key={`checks-${refreshKey}`} />
+        case 'meter':
+          return <MeterReadingManagement key={`meter-${refreshKey}`} />
+        case 'staff':
+          return <StaffManagement key={`staff-${refreshKey}`} />
+        case 'schedules':
+          return <ScheduleManagement key={`schedules-${refreshKey}`} />
+        case 'costs':
+          return <CostAnalysis key={`costs-${refreshKey}`} />
+        case 'monthly':
+          return <MonthlyStatementPage key={`monthly-${refreshKey}`} />
+        case 'calls':
+          return <CallRecordsPage key={`calls-${refreshKey}`} />
+        case 'marketing':
+          return <MarketingManagement key={`marketing-${refreshKey}`} />
+        case 'reports':
+          return <ReportsAnalysis key={`reports-${refreshKey}`} />
+        case 'linebot':
+          return <LineBotManagement key={`linebot-${refreshKey}`} />
+        case 'excel-export':
+          return <ExcelExportTool key={`excel-export-${refreshKey}`} />
+        case 'chat':
+          return <ChatSection key={`chat-${refreshKey}`} />
+        case 'database':
+          return <DatabaseManagement key={`database-${refreshKey}`} />
+        case 'dashboard':
+        default:
+          return <DashboardSection setActiveSection={setActiveSection} key={`dashboard-${refreshKey}`} />
+      }
+    })()
+
+    return (
+      <AnimatePresence mode="wait" initial={false}>
+        <IOSSlideTransition key={activeSection}>
+          {content}
+        </IOSSlideTransition>
+      </AnimatePresence>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 ios-safe-area">
-      {/* Header - iOS 優化 */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/80 sticky top-0 z-30 ios-card-shadow">
+    <div
+      className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 ios-safe-area"
+      style={{
+        background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%)',
+      }}
+      {...edgeSwipeProps}
+      {...pullToRefreshProps}
+    >
+      {/* 手勢指示器 */}
+      <PullToRefreshIndicator
+        isPulling={isPulling}
+        pullDistance={pullDistance}
+        canRefresh={canRefresh}
+        isRefreshing={isRefreshing}
+        threshold={80}
+      />
+      <EdgeSwipeIndicator isDragging={isEdgeDragging} />
+
+      {/* Header - iOS APP 風格 */}
+      <header className="bg-white/95 backdrop-blur-2xl border-b border-gray-200/60 sticky top-0 z-30 shadow-sm">
+        {/* iOS 狀態欄模擬 (僅 Mobile) */}
+        <div className="md:hidden bg-gradient-to-b from-gray-50 to-white px-6 py-2 border-b border-gray-100/50">
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-900">
+            <span id="ios-time" className="w-16">9:41</span>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-700">5G</span>
+              <div className="flex items-center gap-1">
+                <span>🔋</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* APP 標題欄 */}
         <div className="flex items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center gap-3">
             <IOSButton
               variant="ghost"
               size="icon"
               haptic={true}
-              className="md:hidden"
+              className="md:hidden active:scale-90 transition-transform"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
             </IOSButton>
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 p-2 rounded-xl shadow-lg">
-                <BrandIcon size={24} className="text-white" />
+              <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 p-2 rounded-2xl shadow-md active:scale-95 transition-transform">
+                <BrandIcon size={26} className="text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-500 bg-clip-text text-transparent tracking-tight">
                   九九瓦斯行
                 </h1>
-                <p className="text-xs text-slate-500 hidden md:block">2025智能管理平台</p>
+                <p className="text-xs text-slate-500 hidden md:block font-medium">智能管理系統 2.0</p>
               </div>
             </div>
           </div>
@@ -256,8 +365,8 @@ export default function GasManagementSystem() {
             {userName && !loading ? (
               <>
                 <div className="hidden md:flex items-center gap-2 mr-2">
-                  <span className="text-sm text-slate-600">{userName}</span>
-                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
+                  <span className="text-sm font-semibold text-slate-700">{userName}</span>
+                  <span className="text-xs bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full font-bold shadow-sm">
                     {userRole === 'admin' ? '管理員' : userRole}
                   </span>
                 </div>
@@ -265,14 +374,14 @@ export default function GasManagementSystem() {
                   variant="ghost"
                   size="icon"
                   onClick={handleLogout}
-                  className="hover:bg-red-50 hover:text-red-600"
+                  className="hover:bg-red-50 hover:text-red-600 active:scale-90 transition-all rounded-2xl"
                   title="登出"
                 >
                   <LogOut className="h-5 w-5" />
                 </IOSButton>
               </>
             ) : loading ? (
-              <div className="h-11 w-11 animate-pulse bg-slate-200 rounded-xl" />
+              <div className="h-11 w-11 animate-pulse bg-gradient-to-br from-orange-100 to-red-100 rounded-2xl" />
             ) : null}
             <IOSButton
               variant="ghost"
@@ -520,12 +629,13 @@ export default function GasManagementSystem() {
         </main>
       </div>
 
-      {/* iOS 風格底部 Tab 導航 (僅 Mobile) */}
-      <div className="md:hidden">
+      {/* iOS APP 風格底部 Tab 導航 (僅 Mobile) */}
+      <div className="md:hidden sticky bottom-0 z-40">
         <IOSTabBar
           tabs={tabItems}
           activeTab={activeSection}
           onTabChange={(tabId) => {
+            triggerHaptic('light')
             if (tabId === 'more') {
               setMobileMenuOpen(true)
             } else {
@@ -533,6 +643,8 @@ export default function GasManagementSystem() {
             }
           }}
         />
+        {/* iOS 安全區域底部間距 */}
+        <div className="h-safe-area-inset-bottom bg-white border-t border-gray-200"></div>
       </div>
 
       {/* Footer - Desktop only */}

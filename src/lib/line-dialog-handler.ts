@@ -4,7 +4,7 @@
  */
 
 import { db } from './db'
-import { ConversationStateManager, ConversationState } from './line-conversation-state'
+import { ConversationStateManager, ConversationState, getConversationStateManager } from './line-conversation-state'
 import { getLineCustomerLinker } from './line-customer-linker'
 import { LineIntent } from './line-bot-intent'
 

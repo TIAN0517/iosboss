@@ -1,336 +1,200 @@
-# 九九瓦斯行管理系統 (BossJy-99 Gas Management System)
+<p align="center">
+	<a href="https://caddyserver.com">
+		<picture>
+			<source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/1128849/210187358-e2c39003-9a5e-4dd5-a783-6deb6483ee72.svg">
+			<source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/1128849/210187356-dfb7f1c5-ac2e-43aa-bb23-fc014280ae1f.svg">
+			<img src="https://user-images.githubusercontent.com/1128849/210187356-dfb7f1c5-ac2e-43aa-bb23-fc014280ae1f.svg" alt="Caddy" width="550">
+		</picture>
+	</a>
+	<br>
+	<h3 align="center">a <a href="https://zerossl.com"><img src="https://user-images.githubusercontent.com/55066419/208327323-2770dc16-ec09-43a0-9035-c5b872c2ad7f.svg" height="28" style="vertical-align: -7.7px" valign="middle"></a> project</h3>
+</p>
+<hr>
+<h3 align="center">Every site on HTTPS</h3>
+<p align="center">Caddy is an extensible server platform that uses TLS by default.</p>
+<p align="center">
+	<a href="https://github.com/caddyserver/caddy/actions/workflows/ci.yml"><img src="https://github.com/caddyserver/caddy/actions/workflows/ci.yml/badge.svg"></a>
+	<a href="https://pkg.go.dev/github.com/caddyserver/caddy/v2"><img src="https://img.shields.io/badge/godoc-reference-%23007d9c.svg"></a>
+	<br>
+	<a href="https://twitter.com/caddyserver" title="@caddyserver on Twitter"><img src="https://img.shields.io/badge/twitter-@caddyserver-55acee.svg" alt="@caddyserver on Twitter"></a>
+	<a href="https://caddy.community" title="Caddy Forum"><img src="https://img.shields.io/badge/community-forum-ff69b4.svg" alt="Caddy Forum"></a>
+	<br>
+	<a href="https://sourcegraph.com/github.com/caddyserver/caddy?badge" title="Caddy on Sourcegraph"><img src="https://sourcegraph.com/github.com/caddyserver/caddy/-/badge.svg" alt="Caddy on Sourcegraph"></a>
+	<a href="https://cloudsmith.io/~caddy/repos/"><img src="https://img.shields.io/badge/OSS%20hosting%20by-cloudsmith-blue?logo=cloudsmith" alt="Cloudsmith"></a>
+</p>
+<p align="center">
+	<a href="https://github.com/caddyserver/caddy/releases">Releases</a> ·
+	<a href="https://caddyserver.com/docs/">Documentation</a> ·
+	<a href="https://caddy.community">Get Help</a>
+</p>
 
-## 📋 專案概述
 
-這是一個完整的瓦斯行管理系統，使用現代化技術棧開發，提供客戶管理、訂單處理、庫存管理、配送追蹤、LINE Bot 整合等功能。
 
-### 🎯 主要功能
+### Menu
 
-- ✅ **客戶管理** - 完整的客戶資料管理、分組、信用額度
-- ✅ **訂單管理** - 訂單創建、編輯、配送追蹤、簽收
-- ✅ **庫存管理** - 產品庫存、交易記錄、庫存警告
-- ✅ **財務管理** - 成本記錄、支票管理、月度結單
-- ✅ **車隊管理** - 司機位置追蹤、派單系統、配送記錄
-- ✅ **LINE Bot** - 智能對話、訂單查詢、通知推送
-- ✅ **AI 整合** - GLM-4.7、Ollama、語音識別、文字轉語音
-- ✅ **實時功能** - WebSocket 同步、來電顯示、即時通知
+- [Features](#features)
+- [Install](#install)
+- [Build from source](#build-from-source)
+	- [For development](#for-development)
+	- [With version information and/or plugins](#with-version-information-andor-plugins)
+- [Quick start](#quick-start)
+- [Overview](#overview)
+- [Full documentation](#full-documentation)
+- [Getting help](#getting-help)
+- [About](#about)
 
----
+<p align="center">
+	<b>Powered by</b>
+	<br>
+	<a href="https://github.com/caddyserver/certmagic">
+		<picture>
+			<source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/55066419/206946718-740b6371-3df3-4d72-a822-47e4c48af999.png">
+			<source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/1128849/49704830-49d37200-fbd5-11e8-8385-767e0cd033c3.png">
+			<img src="https://user-images.githubusercontent.com/1128849/49704830-49d37200-fbd5-11e8-8385-767e0cd033c3.png" alt="CertMagic" width="250">
+		</picture>
+	</a>
+</p>
 
-## 🛠️ 技術棧
 
-### 前端
-- **Next.js 15** - React 框架
-- **TypeScript** - 類型安全
-- **Tailwind CSS** - 樣式框架
-- **Prisma** - ORM
+## [Features](https://caddyserver.com/features)
 
-### 後端
-- **Next.js API Routes** - Serverless Functions
-- **PostgreSQL 16** - 數據庫
-- **Prisma** - 數據庫 ORM
+- **Easy configuration** with the [Caddyfile](https://caddyserver.com/docs/caddyfile)
+- **Powerful configuration** with its [native JSON config](https://caddyserver.com/docs/json/)
+- **Dynamic configuration** with the [JSON API](https://caddyserver.com/docs/api)
+- [**Config adapters**](https://caddyserver.com/docs/config-adapters) if you don't like JSON
+- **Automatic HTTPS** by default
+	- [ZeroSSL](https://zerossl.com) and [Let's Encrypt](https://letsencrypt.org) for public names
+	- Fully-managed local CA for internal names & IPs
+	- Can coordinate with other Caddy instances in a cluster
+	- Multi-issuer fallback
+- **Stays up when other servers go down** due to TLS/OCSP/certificate-related issues
+- **Production-ready** after serving trillions of requests and managing millions of TLS certificates
+- **Scales to hundreds of thousands of sites** as proven in production
+- **HTTP/1.1, HTTP/2, and HTTP/3** all supported by default
+- **Highly extensible** [modular architecture](https://caddyserver.com/docs/architecture) lets Caddy do anything without bloat
+- **Runs anywhere** with **no external dependencies** (not even libc)
+- Written in Go, a language with higher **memory safety guarantees** than other servers
+- Actually **fun to use**
+- So much more to [discover](https://caddyserver.com/features)
 
-### DevOps
-- **Docker & Docker Compose** - 容器化部署
-- **Vercel** - 雲端部署（計劃中）
-- **Supabase** - 雲端數據庫（計劃中）
-- **GitHub Actions** - CI/CD
+## Install
 
-### 外部服務
-- **LINE Bot API** - LINE Bot
-- **Deepgram** - 語音轉文字
-- **Azure Speech** - 文字轉語音
-- **GLM API** - AI 對話
-- **Ollama** - 本地 AI 模型
+The simplest, cross-platform way to get started is to download Caddy from [GitHub Releases](https://github.com/caddyserver/caddy/releases) and place the executable file in your PATH.
 
----
+See [our online documentation](https://caddyserver.com/docs/install) for other install instructions.
 
-## 📦 安裝與設置
+## Build from source
 
-### 本地開發（Docker）
+Requirements:
 
-```bash
-# 1. 複製項目
-git clone https://github.com/TIAN0517/bossai.git
-cd bossai
+- [Go 1.21 or newer](https://golang.org/dl/)
 
-# 2. 啟動服務
-docker-compose up -d
+### For development
 
-# 3. 訪問應用
-# 前端: http://localhost:9999
-# API: http://localhost:9999/api
-```
-
-### Vercel 雲端部署（推薦）
-
-詳細遷移指南請查看：[MIGRATION_TO_VERCEL_SUPABASE.md](./MIGRATION_TO_VERCEL_SUPABASE.md)
-
-```bash
-# 1. 推送到 GitHub
-git push origin main
-
-# 2. 在 Vercel 導入項目
-#    https://vercel.com/new
-
-# 3. 配置環境變量
-#    DATABASE_URL = [Supabase URL]
-#    其他 API Keys
-```
-
-### GitHub Codespaces 開發
-
-1. 點擊 GitHub 倉庫的 "Code" → "Codespaces"
-2. 點擊 "New codespace"
-3. 選擇分支和配置
-4. 自動開啟開發環境
-
----
-
-## 🗄️ 數據庫遷移
-
-從 Docker 遷移到 Supabase：
-
-```bash
-# 1. 導出 Docker 數據庫
-./export-docker-db.sh  # Linux/Mac
-# 或
-.\export-docker-db.ps1  # Windows
-
-# 2. 導入到 Supabase
-export SUPABASE_URL="postgresql://postgres:[PASSWORD]@db.xxx.supabase.co:5432/postgres"
-./import-to-supabase.sh backup.sql
-```
-
-詳細步驟請參考：[MIGRATION_TO_VERCEL_SUPABASE.md](./MIGRATION_TO_VERCEL_SUPABASE.md)
-
----
-
-## 📁 項目結構
-
-```
-bossai/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/               # API Routes (60+ 個端點)
-│   │   ├── chat/              # 聊天頁面
-│   │   ├── login/             # 登入頁面
-│   │   └── page.tsx           # 首頁
-│   ├── components/             # React 組件
-│   └── lib/                 # 工具函數
-├── prisma/
-│   └── schema.prisma           # 數據庫模型 (25+ 個模型)
-├── db/
-│   └── init/                  # 數據庫初始化腳本
-├── mini-services/              # 微服務
-│   ├── call-display-service/
-│   ├── sync-websocket-service/
-│   └── voice-realtime-service/
-├── docker-compose.yml          # Docker 編排
-├── Dockerfile                 # Docker 映像構建
-└── vercel.json               # Vercel 配置
-```
-
----
-
-## 🔑 API 端點總覽
-
-### 認證
-- `/api/auth/login` - 登入
-- `/api/auth/register` - 註冊
-- `/api/auth/me` - 當前用戶
-- `/api/auth/logout` - 登出
-
-### 客戶與訂單
-- `/api/customers` - 客戶管理
-- `/api/orders` - 訂單管理
-- `/api/products` - 產品管理
-- `/api/inventory` - 庫存管理
-
-### AI 與語音
-- `/api/ai/chat` - AI 對話
-- `/api/voice/stt` - 語音識別
-- `/api/voice/tts` - 文字轉語音
-- `/api/voice/realtime` - 即時語音
-
-### Webhook
-- `/api/webhook/line` - LINE Webhook
-- `/api/external-systems` - 外部系統整合
-
-詳細 API 文檔請參考代碼中的 `src/app/api/` 目錄。
-
----
-
-## 🗄️ 數據庫模型
-
-### 核心業務模型
-- `User` - 用戶/員工
-- `Customer` - 客戶
-- `Product` - 產品
-- `Inventory` - 庫存
-- `GasOrder` - 訂單
-
-### 財務模型
-- `CostRecord` - 成本記錄
-- `Check` - 支票
-- `MonthlyStatement` - 月度結單
-
-### 配送模型
-- `DeliveryRecord` - 配送記錄
-- `DriverLocation` - 司機位置
-- `DispatchRecord` - 派單記錄
-
-### LINE Bot 模型
-- `LineGroup` - LINE 群組
-- `LineMessage` - LINE 訊息
-- `LineConversation` - 對話上下文
-
-完整模型定義請查看：[prisma/schema.prisma](./prisma/schema.prisma)
-
----
-
-## 🚀 開發指南
-
-### 啟動開發環境
+_**Note:** These steps [will not embed proper version information](https://github.com/golang/go/issues/29228). For that, please follow the instructions in the next section._
 
 ```bash
-# 本地開發
-npm run dev
-# 訪問: http://localhost:3000
-
-# Docker 開發
-docker-compose up
-# 訪問: http://localhost:9999
+$ git clone "https://github.com/caddyserver/caddy.git"
+$ cd caddy/cmd/caddy/
+$ go build
 ```
 
-### 數據庫遷移
+When you run Caddy, it may try to bind to low ports unless otherwise specified in your config. If your OS requires elevated privileges for this, you will need to give your new binary permission to do so. On Linux, this can be done easily with: `sudo setcap cap_net_bind_service=+ep ./caddy`
+
+If you prefer to use `go run` which only creates temporary binaries, you can still do this with the included `setcap.sh` like so:
 
 ```bash
-# 生成 Prisma Client
-npx prisma generate
-
-# 執行遷移
-npx prisma migrate dev
-
-# 填充種子數據
-npx prisma db seed
+$ go run -exec ./setcap.sh main.go
 ```
 
-### 代碼規範
+If you don't want to type your password for `setcap`, use `sudo visudo` to edit your sudoers file and allow your user account to run that command without a password, for example:
 
-- 使用 TypeScript 類型
-- 遵循 ESLint 規則
-- 使用 Prisma 進行數據庫操作
-- API Routes 使用 async/await
-- 組件使用 React Hooks
-
----
-
-## 📊 部署選項
-
-### Docker（本地部署）
-
-**優勢：**
-- 完全控制
-- 離線可用
-- 適合開發測試
-
-**限制：**
-- 需要本地服務器
-- 需要手動維護
-- 依賴本地機器
-
-### Vercel + Supabase（推薦）
-
-**優勢：**
-- ✅ 完全免費
-- ✅ 全球 CDN
-- ✅ 自動部署
-- ✅ 零維護
-- ✅ 99.99% 可用性
-
-**詳細指南：** [MIGRATION_TO_VERCEL_SUPABASE.md](./MIGRATION_TO_VERCEL_SUPABASE.md)
-
----
-
-## 🔧 環境變量
-
-必需環境變量（查看 `.env.vercel.template`）：
-
-```env
-# 數據庫
-DATABASE_URL=postgresql://...
-DIRECT_URL=postgresql://...
-
-# JWT
-JWT_SECRET=your-secret-key
-
-# LINE Bot
-LINE_CHANNEL_ACCESS_TOKEN=...
-LINE_CHANNEL_SECRET=...
-
-# AI
-GLM_API_KEYS=...
-OLLAMA_API_KEY=...
-
-# 語音
-DG_API_KEY=...  # Deepgram
-AZ_SPEECH_KEY=...  # Azure
+```
+username ALL=(ALL:ALL) NOPASSWD: /usr/sbin/setcap
 ```
 
----
+replacing `username` with your actual username. Please be careful and only do this if you know what you are doing! We are only qualified to document how to use Caddy, not Go tooling or your computer, and we are providing these instructions for convenience only; please learn how to use your own computer at your own risk and make any needful adjustments.
 
-## 📞 技術支持
+### With version information and/or plugins
 
-- 📧 Email: [您的郵箱]
-- 💬 GitHub Issues: https://github.com/TIAN0517/bossai/issues
-- 📝 文檔: [MIGRATION_TO_VERCEL_SUPABASE.md](./MIGRATION_TO_VERCEL_SUPABASE.md)
+Using [our builder tool, `xcaddy`](https://github.com/caddyserver/xcaddy)...
 
----
+```
+$ xcaddy build
+```
 
-## 📜 授權證書
+...the following steps are automated:
 
-此項目採用 MIT 授權證書。詳細內容請查看 [LICENSE](./LICENSE) 文件。
+1. Create a new folder: `mkdir caddy`
+2. Change into it: `cd caddy`
+3. Copy [Caddy's main.go](https://github.com/caddyserver/caddy/blob/master/cmd/caddy/main.go) into the empty folder. Add imports for any custom plugins you want to add.
+4. Initialize a Go module: `go mod init caddy`
+5. (Optional) Pin Caddy version: `go get github.com/caddyserver/caddy/v2@version` replacing `version` with a git tag, commit, or branch name.
+6. (Optional) Add plugins by adding their import: `_ "import/path/here"`
+7. Compile: `go build`
 
----
 
-## 🙏 致謝
 
-感謝以下開源項目和服務：
 
-- Next.js - React 框架
-- Prisma - 數據庫 ORM
-- Tailwind CSS - 樣式框架
-- LINE Bot - LINE 平台
-- Deepgram - 語音識別
-- Azure Speech - 文字轉語音
-- GLM API - AI 模型
+## Quick start
 
----
+The [Caddy website](https://caddyserver.com/docs/) has documentation that includes tutorials, quick-start guides, reference, and more.
 
-## 📝 版本歷史
+**We recommend that all users -- regardless of experience level -- do our [Getting Started](https://caddyserver.com/docs/getting-started) guide to become familiar with using Caddy.**
 
-- v1.0.0 - 初始版本 (2024-12-29)
-  - 完整的瓦斯行管理系統
-  - LINE Bot 整合
-  - AI 對話功能
-  - 語音識別和合成
-  - Docker 部署支持
-  - Vercel + Supabase 遷移工具
+If you've only got a minute, [the website has several quick-start tutorials](https://caddyserver.com/docs/quick-starts) to choose from! However, after finishing a quick-start tutorial, please read more documentation to understand how the software works. 🙂
 
----
 
-## 🎯 未來計劃
 
-- [ ] 完整遷移到 Vercel + Supabase
-- [ ] 移動端 APP（React Native）
-- [ ] 管理後台數據分析儀表板
-- [ ] 自動化報告生成
-- [ ] 多語言支持（繁體中文、簡體中文）
-- [ ] 更多 AI 功能（智能推薦、預測分析）
 
----
+## Overview
 
-Made with ❤️ by BossJy-99 Team
+Caddy is most often used as an HTTPS server, but it is suitable for any long-running Go program. First and foremost, it is a platform to run Go applications. Caddy "apps" are just Go programs that are implemented as Caddy modules. Two apps -- `tls` and `http` -- ship standard with Caddy.
 
-**Jy技術團隊** © 2024
+Caddy apps instantly benefit from [automated documentation](https://caddyserver.com/docs/json/), graceful on-line [config changes via API](https://caddyserver.com/docs/api), and unification with other Caddy apps.
+
+Although [JSON](https://caddyserver.com/docs/json/) is Caddy's native config language, Caddy can accept input from [config adapters](https://caddyserver.com/docs/config-adapters) which can essentially convert any config format of your choice into JSON: Caddyfile, JSON 5, YAML, TOML, NGINX config, and more.
+
+The primary way to configure Caddy is through [its API](https://caddyserver.com/docs/api), but if you prefer config files, the [command-line interface](https://caddyserver.com/docs/command-line) supports those too.
+
+Caddy exposes an unprecedented level of control compared to any web server in existence. In Caddy, you are usually setting the actual values of the initialized types in memory that power everything from your HTTP handlers and TLS handshakes to your storage medium. Caddy is also ridiculously extensible, with a powerful plugin system that makes vast improvements over other web servers.
+
+To wield the power of this design, you need to know how the config document is structured. Please see [our documentation site](https://caddyserver.com/docs/) for details about [Caddy's config structure](https://caddyserver.com/docs/json/).
+
+Nearly all of Caddy's configuration is contained in a single config document, rather than being scattered across CLI flags and env variables and a configuration file as with other web servers. This makes managing your server config more straightforward and reduces hidden variables/factors.
+
+
+## Full documentation
+
+Our website has complete documentation:
+
+**https://caddyserver.com/docs/**
+
+The docs are also open source. You can contribute to them here: https://github.com/caddyserver/website
+
+
+
+## Getting help
+
+- We advise companies using Caddy to secure a support contract through [Ardan Labs](https://www.ardanlabs.com/my/contact-us?dd=caddy) before help is needed.
+
+- A [sponsorship](https://github.com/sponsors/mholt) goes a long way! We can offer private help to sponsors. If Caddy is benefitting your company, please consider a sponsorship. This not only helps fund full-time work to ensure the longevity of the project, it provides your company the resources, support, and discounts you need; along with being a great look for your company to your customers and potential customers!
+
+- Individuals can exchange help for free on our community forum at https://caddy.community. Remember that people give help out of their spare time and good will. The best way to get help is to give it first!
+
+Please use our [issue tracker](https://github.com/caddyserver/caddy/issues) only for bug reports and feature requests, i.e. actionable development items (support questions will usually be referred to the forums).
+
+
+
+## About
+
+Matthew Holt began developing Caddy in 2014 while studying computer science at Brigham Young University. (The name "Caddy" was chosen because this software helps with the tedious, mundane tasks of serving the Web, and is also a single place for multiple things to be organized together.) It soon became the first web server to use HTTPS automatically and by default, and now has hundreds of contributors and has served trillions of HTTPS requests.
+
+**The name "Caddy" is trademarked.** The name of the software is "Caddy", not "Caddy Server" or "CaddyServer". Please call it "Caddy" or, if you wish to clarify, "the Caddy web server". Caddy is a registered trademark of Stack Holdings GmbH.
+
+- _Project on Twitter: [@caddyserver](https://twitter.com/caddyserver)_
+- _Author on Twitter: [@mholt6](https://twitter.com/mholt6)_
+
+Caddy is a project of [ZeroSSL](https://zerossl.com), a Stack Holdings company.
+
+Debian package repository hosting is graciously provided by [Cloudsmith](https://cloudsmith.com). Cloudsmith is the only fully hosted, cloud-native, universal package management solution, that enables your organization to create, store and share packages in any format, to any place, with total confidence.

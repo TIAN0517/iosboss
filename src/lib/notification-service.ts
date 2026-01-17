@@ -87,20 +87,66 @@ export async function sendLineNotification(payload: NotificationPayload): Promis
 }
 
 /**
- * 構建 LINE 訊息內容
+ * 構建 LINE 訊息內容（包含休假明細）
  */
-function buildLineMessage(payload: NotificationPayload): string {
-  const { type, year, month, submittedBy, reviewedBy, status, note } = payload;
+async function buildLineMessage(payload: NotificationPayload): Promise<string> {
+  const { type, year, month, submittedBy, reviewedBy, status, note, sheetId } = payload;
 
+  // 根據不同類型構建訊息
   switch (type) {
-    case 'schedule_submitted':
-      return `📋 **新休假表待審核**
+    case 'schedule_submitted': {
+      // 獲取休假表詳細內容
+      const sheet = await db.scheduleSheet.findUnique({
+        where: { id: sheetId },
+        include: {
+          stations: {
+            include: {
+              employees: {
+                orderBy: { scheduleDate: 'asc' },
+              },
+            },
+          },
+        },
+      });
+
+      if (!sheet) {
+        return `📋 **新休假表待審核**
 
 📅 年月：${year}年${month}月
 👤 提交者：${submittedBy || '未知'}
 📊 狀態：待審核
 
 請查看 APP 並進行審核。`;
+      }
+
+      // 構建詳細休假內容
+      let details = '\n';
+      for (const station of sheet.stations) {
+        details += `\n【${station.stationName}站】\n`;
+
+        // 按員工分組
+        const employeesMap = new Map<string, string[]>();
+        for (const emp of station.employees) {
+          if (!employeesMap.has(emp.employeeName)) {
+            employeesMap.set(emp.employeeName, []);
+          }
+          const dateStr = emp.displayDate + (emp.isHalfDay ? (emp.isMorning ? '(上午)' : '(下午)') : '');
+          employeesMap.get(emp.employeeName)!.push(dateStr);
+        }
+
+        // 輸出每個員工的休假日期
+        for (const [empName, dates] of employeesMap) {
+          details += `${empName}：${dates.join('、')}\n`;
+        }
+      }
+
+      return `📋 **新休假表待審核**
+
+📅 年月：${year}年${month}月
+👤 提交者：${submittedBy || '未知'}
+📊 狀態：待審核${details}
+請查看 APP 並進行審核。`;
+    }
 
     case 'schedule_approved':
       return `✅ **休假表已通過**

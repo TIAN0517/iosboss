@@ -1,11 +1,11 @@
 /**
  * Cache Manager
- * 缓存管理器 - 提供内存缓存和分布式缓存支持
+ * 緩存管理器 - 提供記憶體緩存和分散式緩存支持
  */
 
 import { Result, ok, err, CacheEntry, CacheOptions } from './types';
 
-// ==================== 内存缓存实现 ====================
+// ==================== 記憶體緩存实现 ====================
 
 interface MemoryCacheStore {
   [key: string]: CacheEntry<any>;
@@ -13,7 +13,7 @@ interface MemoryCacheStore {
 
 export class CacheManager {
   private cache: MemoryCacheStore = {};
-  private readonly defaultTTL = 300; // 5分钟
+  private readonly defaultTTL = 300; // 5分鐘
   private cleanupInterval: NodeJS.Timeout | null = null;
   private stats = {
     hits: 0,
@@ -24,14 +24,14 @@ export class CacheManager {
   };
 
   constructor() {
-    // 定期清理过期缓存
+    // 定期清理过期緩存
     this.startCleanup();
   }
 
-  // ==================== 基础操作 ====================
+  // ==================== 基礎操作 ====================
 
   /**
-   * 获取缓存
+   * 獲取緩存
    */
   async get<T>(key: string): Promise<Result<T | null>> {
     try {
@@ -42,7 +42,7 @@ export class CacheManager {
         return ok(null);
       }
 
-      // 检查是否过期
+      // 檢查是否过期
       if (entry.expiresAt < new Date()) {
         delete this.cache[key];
         this.stats.evictions++;
@@ -61,7 +61,7 @@ export class CacheManager {
   }
 
   /**
-   * 设置缓存
+   * 設定緩存
    */
   async set<T>(
     key: string,
@@ -89,7 +89,7 @@ export class CacheManager {
   }
 
   /**
-   * 删除缓存
+   * 刪除緩存
    */
   async delete(key: string): Promise<Result<boolean>> {
     try {
@@ -105,7 +105,7 @@ export class CacheManager {
   }
 
   /**
-   * 清空所有缓存
+   * 清空所有緩存
    */
   async clear(): Promise<Result<void>> {
     try {
@@ -116,10 +116,10 @@ export class CacheManager {
     }
   }
 
-  // ==================== 批量操作 ====================
+  // ==================== 批次操作 ====================
 
   /**
-   * 批量获取
+   * 批次獲取
    */
   async getMany<T>(keys: string[]): Promise<Result<Map<string, T>>> {
     try {
@@ -139,7 +139,7 @@ export class CacheManager {
   }
 
   /**
-   * 批量设置
+   * 批次設定
    */
   async setMany<T>(
     items: Map<string, T>,
@@ -156,7 +156,7 @@ export class CacheManager {
   }
 
   /**
-   * 按标签失效缓存
+   * 按标签失效緩存
    */
   async invalidateByTag(tag: string): Promise<Result<number>> {
     try {
@@ -177,7 +177,7 @@ export class CacheManager {
   }
 
   /**
-   * 按前缀失效缓存
+   * 按前缀失效緩存
    */
   async invalidateByPrefix(prefix: string): Promise<Result<number>> {
     try {
@@ -199,7 +199,7 @@ export class CacheManager {
   // ==================== 装饰器模式 ====================
 
   /**
-   * 缓存装饰器 - 自动缓存函数结果
+   * 緩存装饰器 - 自动緩存函數结果
    */
   cached<T extends (...args: any[]) => Promise<any>>(
     fn: T,
@@ -210,31 +210,31 @@ export class CacheManager {
     }
   ): T {
     return (async (...args: Parameters<T>) => {
-      // 生成缓存键
+      // 生成緩存键
       const key = options?.keyGenerator
         ? options.keyGenerator(...args)
         : `${options?.keyPrefix || fn.name}:${JSON.stringify(args)}`;
 
-      // 尝试从缓存获取
+      // 嘗試从緩存獲取
       const cached = await this.get(key);
       if (cached.success && cached.data !== null) {
         return cached.data;
       }
 
-      // 执行函数
+      // 执行函數
       const result = await fn(...args);
 
-      // 存入缓存
+      // 存入緩存
       await this.set(key, result, { ttl: options?.ttl });
 
       return result;
     }) as T;
   }
 
-  // ==================== 统计信息 ====================
+  // ==================== 統計資訊 ====================
 
   /**
-   * 获取缓存统计
+   * 獲取緩存統計
    */
   getStats() {
     return {
@@ -245,7 +245,7 @@ export class CacheManager {
   }
 
   /**
-   * 重置统计
+   * 重置統計
    */
   resetStats(): void {
     this.stats = {
@@ -260,7 +260,7 @@ export class CacheManager {
   // ==================== 清理机制 ====================
 
   /**
-   * 清理过期缓存
+   * 清理过期緩存
    */
   private cleanup(): void {
     const now = new Date();
@@ -279,12 +279,12 @@ export class CacheManager {
   }
 
   /**
-   * 启动定期清理
+   * 啟動定期清理
    */
   private startCleanup(): void {
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
-    }, 60000); // 每分钟清理一次
+    }, 60000); // 每分鐘清理一次
   }
 
   /**
@@ -303,34 +303,34 @@ export class CacheManager {
 
 export const cacheManager = new CacheManager();
 
-// ==================== 缓存键生成器 ====================
+// ==================== 緩存键生成器 ====================
 
 export const CacheKeys = {
-  // 客户缓存
+  // 客戶緩存
   customer: (id: string) => `customer:${id}`,
   customers: (filter?: string) => `customers:${filter || 'all'}`,
   customerStats: () => 'customers:stats',
 
-  // 订单缓存
+  // 訂單緩存
   order: (id: string) => `order:${id}`,
   orders: (filter?: string) => `orders:${filter || 'all'}`,
   orderStats: (period?: string) => `orders:stats:${period || 'all'}`,
   todayOrders: () => 'orders:today',
 
-  // 产品缓存
+  // 產品緩存
   product: (id: string) => `product:${id}`,
   products: () => 'products:all',
   inventory: (id: string) => `inventory:${id}`,
   inventoryAlerts: () => 'inventory:alerts',
 
-  // 库存缓存
+  // 庫存緩存
   inventory: () => 'inventory:all',
   lowStockProducts: () => 'inventory:low',
 
-  // 统计缓存
+  // 統計緩存
   dashboardStats: () => 'stats:dashboard',
   revenueStats: (period: string) => `stats:revenue:${period}`,
 
-  // 设置缓存
+  // 設定緩存
   settings: () => 'settings:all',
 };

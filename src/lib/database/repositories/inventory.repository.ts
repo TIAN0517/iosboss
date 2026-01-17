@@ -1,6 +1,6 @@
 /**
  * Inventory Repository
- * 库存数据访问层 - 库存管理核心逻辑
+ * 庫存數據访问层 - 庫存管理核心逻辑
  */
 
 import { Prisma } from '@prisma/client';
@@ -14,7 +14,7 @@ import {
   BusinessError,
 } from '../types';
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 export interface StockAdjustmentInput {
   productId: string;
@@ -67,14 +67,14 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
     };
   }
 
-  // ==================== 核心业务逻辑 ====================
+  // ==================== 核心業務逻辑 ====================
 
   /**
-   * 调整库存（在事务中调用）
+   * 调整庫存（在事務中调用）
    */
   async adjustStock(data: StockAdjustmentInput): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
-      // 1. 获取当前库存
+      // 1. 獲取當前庫存
       const inventory = await tx.inventory.findUnique({
         where: { productId: data.productId },
         include: { product: true },
@@ -84,7 +84,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
         throw new NotFoundError('Inventory', data.productId);
       }
 
-      // 2. 计算新库存
+      // 2. 计算新庫存
       const newQuantity = inventory.quantity + data.quantity;
 
       if (newQuantity < 0) {
@@ -93,19 +93,19 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
         );
       }
 
-      // 3. 验证产品状态
+      // 3. 驗證產品状态
       if (!inventory.product.isActive) {
         throw new ValidationError('Cannot adjust stock for inactive product');
       }
 
-      // 4. 更新库存
+      // 4. 更新庫存
       const updated = await tx.inventory.update({
         where: { id: inventory.id },
         data: { quantity: newQuantity },
         include: this.includeRelations,
       });
 
-      // 5. 记录库存变动
+      // 5. 記錄庫存变动
       await tx.inventoryTransaction.create({
         data: {
           productId: data.productId,
@@ -127,7 +127,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
   }
 
   /**
-   * 批量调整库存
+   * 批次调整庫存
    */
   async adjustStockBatch(adjustments: StockAdjustmentInput[]): Promise<Result<any[]>> {
     return this.withTransaction(async (tx) => {
@@ -240,10 +240,10 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
     });
   }
 
-  // ==================== 查询方法 ====================
+  // ==================== 查詢方法 ====================
 
   /**
-   * 获取库存告警
+   * 獲取庫存告警
    */
   async getAlerts(): Promise<Result<InventoryAlert[]>> {
     try {
@@ -271,7 +271,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
   }
 
   /**
-   * 获取库存统计
+   * 獲取庫存統計
    */
   async getStatistics(): Promise<Result<InventoryStats>> {
     try {
@@ -301,7 +301,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
       const lowStockCount = inventories.filter((inv) => inv.quantity <= inv.minStock).length;
       const outOfStockCount = inventories.filter((inv) => inv.quantity === 0).length;
 
-      // 计算库存总值
+      // 计算庫存总值
       let totalValue = 0;
       for (const inv of inventories) {
         const product = await this.prisma.product.findUnique({
@@ -336,7 +336,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
   }
 
   /**
-   * 获取库存变动记录
+   * 獲取庫存变动記錄
    */
   async getTransactions(options?: {
     productId?: string;
@@ -391,7 +391,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
   }
 
   /**
-   * 检查库存是否足够
+   * 檢查庫存是否足够
    */
   async checkAvailability(items: Array<{ productId: string; quantity: number }>): Promise<Result<{
     available: boolean;
@@ -430,7 +430,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
   }
 
   /**
-   * 预留库存（订单创建时调用）
+   * 预留庫存（訂單創建时调用）
    */
   async reserveStock(items: Array<{ productId: string; quantity: number }>): Promise<Result<void>> {
     return this.withTransaction(async (tx) => {
@@ -461,7 +461,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
             quantity: -item.quantity,
             quantityBefore: inventory.quantity,
             quantityAfter: inventory.quantity - item.quantity,
-            reason: '订单预留',
+            reason: '訂單预留',
           },
         });
       }
@@ -471,7 +471,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
   }
 
   /**
-   * 释放库存（订单取消时调用）
+   * 释放庫存（訂單取消时调用）
    */
   async releaseStock(items: Array<{ productId: string; quantity: number }>): Promise<Result<void>> {
     return this.withTransaction(async (tx) => {
@@ -496,7 +496,7 @@ export class InventoryRepository extends BaseRepository<any, any, any> {
             quantity: item.quantity,
             quantityBefore: inventory.quantity,
             quantityAfter: inventory.quantity + item.quantity,
-            reason: '订单取消释放',
+            reason: '訂單取消释放',
           },
         });
       }

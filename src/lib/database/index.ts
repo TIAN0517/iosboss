@@ -1,20 +1,20 @@
 /**
  * Database Module
- * 企业级数据库服务层 - 统一导出
+ * 企業级數據庫服务层 - 統一匯出
  *
  * 架构层次：
  * 1. API Routes (调用 Service)
- * 2. Service Layer (业务逻辑，调用 Repository + Transaction)
- * 3. Repository Layer (数据访问，封装 Prisma)
- * 4. Prisma ORM (数据库操作)
+ * 2. Service Layer (業務逻辑，调用 Repository + Transaction)
+ * 3. Repository Layer (數據访问，封装 Prisma)
+ * 4. Prisma ORM (數據庫操作)
  *
- * 横切关注点：
- * - TransactionManager: 事务管理
- * - CacheManager: 缓存管理
- * - AuditLogger: 审计日志
+ * 横切關注点：
+ * - TransactionManager: 事務管理
+ * - CacheManager: 緩存管理
+ * - AuditLogger: 審計日誌
  */
 
-// ==================== 核心类型 ====================
+// ==================== 核心類別型 ====================
 
 export type {
   // Result Type
@@ -53,7 +53,7 @@ export { ok, err } from './types';
 
 export { BaseRepository } from './repository';
 
-// ==================== 业务仓储 ====================
+// ==================== 業務仓储 ====================
 
 export { CustomerRepository } from './repositories/customer.repository';
 export { OrderRepository } from './repositories/order.repository';
@@ -61,7 +61,7 @@ export { ProductRepository } from './repositories/product.repository';
 export { InventoryRepository } from './repositories/inventory.repository';
 export { CheckRepository } from './repositories/check.repository';
 
-// ==================== 业务服务 ====================
+// ==================== 業務服务 ====================
 
 export {
   OrderService,
@@ -85,33 +85,33 @@ export { TransactionManager, transactionManager } from './transaction';
 export { CacheManager, cacheManager, CacheKeys } from './cache';
 export { AuditLogger, auditLogger, createAuditMiddleware } from './audit';
 
-// ==================== 便捷导出 ====================
+// ==================== 便捷匯出 ====================
 
 /**
- * 使用示例：
+ * 使用範例：
  *
  * ```ts
  * import { db, customerRepo, orderService } from '@/lib/database'
  *
- * // 查询客户
+ * // 查詢客戶
  * const customer = await customerRepo.findByPhone('0912345678')
  *
- * // 创建订单
+ * // 創建訂單
  * const order = await orderService.createOrder({
  *   customerId: 'xxx',
  *   items: [{ productId: 'yyy', quantity: 2 }]
  * })
  *
- * // 使用事务
+ * // 使用事務
  * const result = await transactionManager.run(async (tx) => {
  *   // 操作
  * })
  *
- * // 使用缓存
+ * // 使用緩存
  * await cacheManager.set('key', data, { ttl: 300 })
  * const cached = await cacheManager.get('key')
  *
- * // 记录审计日志
+ * // 記錄審計日誌
  * await auditLogger.logCreate({
  *   userId: 'xxx',
  *   username: 'admin',
@@ -122,5 +122,5 @@ export { AuditLogger, auditLogger, createAuditMiddleware } from './audit';
  * ```
  */
 
-// 默认导出 - 数据库实例
+// 默认匯出 - 數據庫实例
 export { db as database } from '@/lib/db';

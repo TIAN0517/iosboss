@@ -1,33 +1,33 @@
 /**
- * 数据库服务层 - 基础类型定义
- * 企业级数据库抽象层
+ * 數據庫服務層 - 基礎類型定義
+ * 企業級數據庫抽象層
  */
 
-// ==================== Result 类型 ====================
+// ==================== Result 類型 ====================
 
 /**
- * 操作结果类型 - 用于错误处理
+ * 操作結果類型 - 用於錯誤處理
  */
 export type Result<T, E = Error> =
   | { success: true; data: T }
   | { success: false; error: E };
 
 /**
- * 成功结果
+ * 成功結果
  */
 export function ok<T>(data: T): Result<T> {
   return { success: true, data };
 }
 
 /**
- * 失败结果
+ * 失敗結果
  */
 export function err<E extends Error>(error: E): Result<never, E> {
   return { success: false, error };
 }
 
 /**
- * 从可能抛出错误的函数创建 Result
+ * 從可能拋出錯誤的函數創建 Result
  */
 export async function safeResult<T>(
   fn: () => Promise<T>
@@ -52,10 +52,10 @@ export function safeResultSync<T>(fn: () => T): Result<T> {
   }
 }
 
-// ==================== 分页类型 ====================
+// ==================== 分頁類別型 ====================
 
 /**
- * 分页参数
+ * 分頁參數
  */
 export interface PaginationParams {
   page: number;
@@ -65,7 +65,7 @@ export interface PaginationParams {
 }
 
 /**
- * 默认分页参数
+ * 默認分頁參數
  */
 export const DEFAULT_PAGINATION: PaginationParams = {
   page: 1,
@@ -74,7 +74,7 @@ export const DEFAULT_PAGINATION: PaginationParams = {
 };
 
 /**
- * 分页结果
+ * 分頁结果
  */
 export interface PaginatedResult<T> {
   items: T[];
@@ -87,7 +87,7 @@ export interface PaginatedResult<T> {
 }
 
 /**
- * 创建分页结果
+ * 創建分頁结果
  */
 export function createPaginatedResult<T>(
   items: T[],
@@ -106,10 +106,10 @@ export function createPaginatedResult<T>(
   };
 }
 
-// ==================== 查询构建器类型 ====================
+// ==================== 查詢构建器類別型 ====================
 
 /**
- * 查询操作符
+ * 查詢操作符
  */
 export type Operator =
   | 'eq'
@@ -129,7 +129,7 @@ export type Operator =
   | 'search';
 
 /**
- * 查询条件
+ * 查詢条件
  */
 export interface WhereCondition<T = any> {
   field: keyof T | string;
@@ -139,7 +139,7 @@ export interface WhereCondition<T = any> {
 }
 
 /**
- * 查询选项
+ * 查詢选项
  */
 export interface QueryOptions {
   where?: WhereCondition[];
@@ -148,10 +148,10 @@ export interface QueryOptions {
   select?: Record<string, boolean>;
 }
 
-// ==================== 事务类型 ====================
+// ==================== 事務類別型 ====================
 
 /**
- * 事务上下文
+ * 事務上下文
  */
 export interface TransactionContext {
   id: string;
@@ -160,7 +160,7 @@ export interface TransactionContext {
 }
 
 /**
- * 事务选项
+ * 事務选项
  */
 export interface TransactionOptions {
   isolationLevel?: TransactionContext['isolationLevel'];
@@ -168,10 +168,10 @@ export interface TransactionOptions {
   maxRetries?: number;
 }
 
-// ==================== 审计日志类型 ====================
+// ==================== 審計日誌類別型 ====================
 
 /**
- * 审计操作类型
+ * 審計操作類別型
  */
 export type AuditAction =
   | 'create'
@@ -185,7 +185,7 @@ export type AuditAction =
   | 'restore';
 
 /**
- * 审计日志条目
+ * 審計日誌条目
  */
 export interface AuditLog {
   id: string;
@@ -202,10 +202,10 @@ export interface AuditLog {
   metadata?: Record<string, any>;
 }
 
-// ==================== 业务错误类型 ====================
+// ==================== 業務錯誤類別型 ====================
 
 /**
- * 业务错误基类
+ * 業務錯誤基類別
  */
 export class BusinessError extends Error {
   constructor(
@@ -220,7 +220,7 @@ export class BusinessError extends Error {
 }
 
 /**
- * 验证错误
+ * 驗證錯誤
  */
 export class ValidationError extends BusinessError {
   constructor(
@@ -234,7 +234,7 @@ export class ValidationError extends BusinessError {
 }
 
 /**
- * 未找到错误
+ * 未找到錯誤
  */
 export class NotFoundError extends BusinessError {
   constructor(resource: string, id?: string) {
@@ -245,7 +245,7 @@ export class NotFoundError extends BusinessError {
 }
 
 /**
- * 冲突错误
+ * 衝突錯誤
  */
 export class ConflictError extends BusinessError {
   constructor(message: string, details?: Record<string, any>) {
@@ -255,7 +255,7 @@ export class ConflictError extends BusinessError {
 }
 
 /**
- * 权限错误
+ * 權限錯誤
  */
 export class UnauthorizedError extends BusinessError {
   constructor(message: string = 'Unauthorized') {
@@ -265,7 +265,7 @@ export class UnauthorizedError extends BusinessError {
 }
 
 /**
- * 禁止访问错误
+ * 禁止訪問錯誤
  */
 export class ForbiddenError extends BusinessError {
   constructor(message: string = 'Forbidden') {
@@ -274,24 +274,24 @@ export class ForbiddenError extends BusinessError {
   }
 }
 
-// ==================== 缓存类型 ====================
+// ==================== 緩存類別型 ====================
 
 /**
- * 缓存键生成器
+ * 緩存键生成器
  */
 export type CacheKeyGenerator<T> = (args: any[]) => string;
 
 /**
- * 缓存选项
+ * 緩存选项
  */
 export interface CacheOptions {
-  ttl?: number; // 过期时间（秒）
-  tags?: string[]; // 缓存标签，用于批量失效
-  key?: string; // 自定义缓存键
+  ttl?: number; // 過期時間（秒）
+  tags?: string[]; // 緩存標籤，用于批次失效
+  key?: string; // 自訂緩存键
 }
 
 /**
- * 缓存条目
+ * 緩存条目
  */
 export interface CacheEntry<T> {
   value: T;
@@ -302,10 +302,10 @@ export interface CacheEntry<T> {
   hitCount: number;
 }
 
-// ==================== 统计类型 ====================
+// ==================== 統計類別型 ====================
 
 /**
- * 统计数据
+ * 統計數據
  */
 export interface Statistics {
   totalCount: number;
@@ -316,7 +316,7 @@ export interface Statistics {
 }
 
 /**
- * 趋势数据点
+ * 趨勢數據点
  */
 export interface TrendDataPoint {
   date: Date;
@@ -325,7 +325,7 @@ export interface TrendDataPoint {
 }
 
 /**
- * 时间范围
+ * 時間范围
  */
 export type DateRange =
   | 'today'
@@ -341,7 +341,7 @@ export type DateRange =
   | 'custom';
 
 /**
- * 日期范围参数
+ * 日期范围參數
  */
 export interface DateRangeParams {
   range: DateRange;

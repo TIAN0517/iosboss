@@ -1,0 +1,3 @@
+@echo off
+echo Starting Cloudflare Tunnel with config file...
+cloudflared.exe tunnel --config cloudflared.yml run

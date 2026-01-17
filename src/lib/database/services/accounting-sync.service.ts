@@ -261,7 +261,7 @@ export class AccountingSyncService {
   }
 
   /**
-   * 批量同步待處理的記錄
+   * 批次同步待處理的記錄
    */
   async syncPendingRecords(limit: number = 50): Promise<Result<SyncResult>> {
     try {

@@ -973,7 +973,7 @@ ${parseFloat(growth) >= 0 ? '🌟 比昨天好！繼續加油！' : '💪 明天
 
 狀態：待審核 ⏳
 
-請聯絡老闆娘審核。`
+請聯絡主管審核。`
       }
 
       // 保存新的休假表
@@ -1003,7 +1003,7 @@ ${parseFloat(growth) >= 0 ? '🌟 比昨天好！繼續加油！' : '💪 明天
 
 狀態：待審核 ⏳
 
-已通知老闆娘審核。`
+已通知主管審核。`
     } catch (error) {
       console.error('[UnifiedAIAssistant] executeSubmitSchedule error:', error)
       return '⚠️ 提交休假表時發生錯誤，請稍後再試。'

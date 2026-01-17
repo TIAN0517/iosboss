@@ -1,17 +1,17 @@
 /**
  * Transaction Manager
- * 事务管理器 - 提供统一的事务处理和错误恢复机制
+ * 事務管理器 - 提供統一的事務處理和錯誤恢復机制
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
 import { Result, ok, err, TransactionOptions, TransactionContext } from './types';
 import { db } from '@/lib/db';
 
-// ==================== 事务状态 ====================
+// ==================== 事務状态 ====================
 
 type TransactionStatus = 'idle' | 'active' | 'committed' | 'rolledback';
 
-// ==================== 事务管理器 ====================
+// ==================== 事務管理器 ====================
 
 export class TransactionManager {
   private prisma: PrismaClient;
@@ -22,7 +22,7 @@ export class TransactionManager {
   }
 
   /**
-   * 执行事务
+   * 执行事務
    */
   async run<R>(
     fn: (tx: PrismaClient) => Promise<R>,
@@ -59,7 +59,7 @@ export class TransactionManager {
   }
 
   /**
-   * 执行批量操作（在单个事务中）
+   * 执行批次操作（在單個事務中）
    */
   async batch<R>(
     operations: Array<(tx: PrismaClient) => Promise<R>>,
@@ -88,12 +88,12 @@ export class TransactionManager {
       } catch (e) {
         lastError = e instanceof Error ? e : new Error(String(e));
 
-        // 检查是否为可重试的错误
+        // 檢查是否为可重试的錯誤
         if (!this.isRetryableError(lastError)) {
           return err(lastError);
         }
 
-        // 最后一次尝试失败，不再重试
+        // 最後一次嘗試失敗，不再重试
         if (attempt >= maxRetries) {
           break;
         }
@@ -118,14 +118,14 @@ export class TransactionManager {
   }
 
   /**
-   * 获取当前活动的事务
+   * 獲取當前活动的事務
    */
   getActiveTransactions(): TransactionContext[] {
     return Array.from(this.activeTransactions.values());
   }
 
   /**
-   * 检查是否有活动的事务
+   * 檢查是否有活动的事務
    */
   hasActiveTransactions(): boolean {
     return this.activeTransactions.size > 0;

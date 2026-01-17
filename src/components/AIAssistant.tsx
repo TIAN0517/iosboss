@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { IOSCard } from '@/components/ui/ios-card'
 import { IOSButton } from '@/components/ui/ios-button'
 import { triggerHaptic } from '@/lib/ios-utils'
+import { hapticManager } from '@/lib/haptic-manager'
+import { showSuccess, showError, showConfirm } from '@/lib/native-alert.tsx'
 import {
   MessageCircle,
   X,
@@ -27,6 +29,10 @@ import {
   Wifi,
   WifiOff,
   Loader2,
+  Copy,
+  Trash2,
+  Mic,
+  MicOff,
 } from 'lucide-react'
 
 interface Message {
@@ -56,6 +62,9 @@ interface Message {
   source?: 'ai' | 'local-fallback' | 'error'
   // 模型名稱
   model?: string
+  // JSX 內容（用於格式化的歡迎訊息）
+  isJsx?: boolean
+  jsxContent?: React.ReactNode
 }
 
 const QUICK_ACTIONS = [
@@ -68,15 +77,44 @@ const QUICK_ACTIONS = [
 const AI_NAME = 'BossJy-99助手'
 const AI_AVATAR = '🤖'
 
+// 可用的 Ollama 模型列表
+const OLLAMA_MODELS = [
+  { id: 'qwen2.5:14b', name: 'Qwen 2.5 14B', desc: '均衡性能，推薦使用' },
+  { id: 'qwen2.5:32b', name: 'Qwen 2.5 32B', desc: '更高智能' },
+  { id: 'dolphin-llama3:latest', name: 'Dolphin Llama3', desc: '對話優化' },
+  { id: 'llama3:latest', name: 'Llama 3', desc: '經典模型' },
+]
+
+// 歡迎訊息（使用 JSX 結構而非 \n\n）
+const WELCOME_MESSAGE = (
+  <>
+    <div>您好！我是 {AI_NAME} {AI_AVATAR}</div>
+    <div className="mt-3">我可以幫您管理整個瓦斯行系統：</div>
+    <div className="mt-2 space-y-1">
+      <div>🛵 <strong>訂單管理</strong> - 訂購瓦斯、查詢訂單</div>
+      <div>👥 <strong>客戶管理</strong> - 新增客戶、查詢客戶資料</div>
+      <div>📦 <strong>庫存管理</strong> - 查詢庫存、補貨登記</div>
+      <div>💰 <strong>財務管理</strong> - 營收利潤、成本分析、支票管理、抄錶計算</div>
+      <div>📊 <strong>營運報表</strong> - 今日統計、月度報表</div>
+      <div>💬 <strong>語音功能</strong> - 點擊麥克風就可以說話喔！</div>
+    </div>
+    <div className="mt-3">請問今天有什麼可以幫您的呢？</div>
+  </>
+)
+
 export function AIAssistant() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [selectedModel, setSelectedModel] = useState('qwen2.5:14b')
+  const [showModelSelector, setShowModelSelector] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: `您好！我是 ${AI_NAME} ${AI_AVATAR}\n\n我可以幫您管理整個瓦斯行系統：\n\n🛵 **訂單管理**\n• 訂購瓦斯、查詢訂單\n\n👥 **客戶管理**\n• 新增客戶、查詢客戶資料\n\n📦 **庫存管理**\n• 查詢庫存、補貨登記\n\n💰 **財務管理**\n• 營收利潤、成本分析\n• 支票管理、抄錶計算\n\n📊 **營運報表**\n• 今日統計、月度報表\n\n💬 **語音功能**\n• 點擊麥克風就可以說話喔！\n\n請問今天有什麼可以幫您的呢？`,
+      content: '',
       timestamp: new Date(),
+      isJsx: true,
+      jsxContent: WELCOME_MESSAGE,
     },
   ])
   const [inputValue, setInputValue] = useState('')
@@ -90,6 +128,10 @@ export function AIAssistant() {
   const [providerName, setProviderName] = useState<string>('初始化中...')
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking')
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: string; content: string }>>([])
+
+  // 語音識別狀態
+  const [isListening, setIsListening] = useState(false)
+  const recognitionRef = useRef<any>(null)
 
   // 思考過程展開狀態
   const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({})
@@ -205,8 +247,103 @@ export function AIAssistant() {
     return () => clearInterval(interval)
   }, [])
 
+  // 語音識別處理
+  const startVoiceRecognition = () => {
+    // 檢查瀏覽器是否支援語音識別
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showError('您的瀏覽器不支援語音輸入功能')
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+
+    recognition.lang = 'zh-TW'
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.maxAlternatives = 1
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = ''
+      let finalTranscript = ''
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript += transcript
+        }
+      }
+
+      // 實時顯示識別結果
+      if (interimTranscript) {
+        setInputValue(interimTranscript)
+      }
+
+      // 如果是最終結果，設置輸入並發送
+      if (finalTranscript) {
+        setInputValue(finalTranscript)
+        setIsListening(false)
+        triggerHaptic('success')
+      }
+    }
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error)
+      setIsListening(false)
+
+      let errorMsg = '語音識別失敗'
+      switch (event.error) {
+        case 'no-speech':
+          errorMsg = '沒有檢測到語音，請重試'
+          break
+        case 'audio-capture':
+          errorMsg = '無法訪問麥克風，請檢查權限'
+          break
+        case 'not-allowed':
+          errorMsg = '麥克風權限被拒絕，請允許訪問'
+          break
+        case 'network':
+          errorMsg = '網路錯誤，請檢查連接'
+          break
+      }
+      showError(errorMsg)
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setIsListening(true)
+    triggerHaptic('light')
+
+    // 15 秒後自動停止
+    setTimeout(() => {
+      if (isListening && recognitionRef.current) {
+        recognitionRef.current.stop()
+        setIsListening(false)
+      }
+    }, 15000)
+  }
+
+  const stopVoiceRecognition = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+      recognitionRef.current = null
+    }
+    setIsListening(false)
+    triggerHaptic('medium')
+  }
+
   const handleSend = async (useStream = true) => {
     if (!inputValue.trim() || isLoading) return
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AIAssistant.tsx:208',message:'AI 助手開始發送消息',data:{messageLength:inputValue.length,useStream},timestamp:Date.now(),sessionId:'debug-session',runId:'ai-check',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -248,6 +385,7 @@ export function AIAssistant() {
         message: safeMessage,
         conversationHistory: cleanHistory,
         stream: Boolean(useStream),
+        model: selectedModel,
       }
       
       // 在發送前驗證請求體是否可序列化
@@ -261,16 +399,26 @@ export function AIAssistant() {
           message: safeMessage,
           conversationHistory: [],
           stream: Boolean(useStream),
+          model: selectedModel,
         })
       }
       
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AIAssistant.tsx:267',message:'發送 AI API 請求',data:{url:'/api/ai/chat',method:'POST'},timestamp:Date.now(),sessionId:'debug-session',runId:'ai-check',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: requestBodyString,
       })
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AIAssistant.tsx:273',message:'AI API 響應',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'ai-check',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
       if (!response.ok) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AIAssistant.tsx:275',message:'AI API 請求失敗',data:{status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'ai-check',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         throw new Error(`API 請求失敗: ${response.status}`)
       }
 
@@ -354,12 +502,14 @@ export function AIAssistant() {
               message: safeMessage,
               conversationHistory: cleanHistoryForInfo,
               stream: false,
+              model: selectedModel,
             })
           } catch {
             infoRequestBodyString = JSON.stringify({
               message: safeMessage,
               conversationHistory: [],
               stream: false,
+              model: selectedModel,
             })
           }
           
@@ -438,6 +588,9 @@ export function AIAssistant() {
       setIsStreaming(false)
       triggerHaptic('success')
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1ff8d251-d573-446b-b758-05f60a9aa458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AIAssistant.tsx:440',message:'AI 處理錯誤',data:{errorMessage:error instanceof Error ? error.message : String(error),errorName:error instanceof Error ? error.name : 'Unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'ai-check',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       // 安全地記錄錯誤，避免循環引用
       let errorMessage = '未知錯誤'
       let errorForLog = error
@@ -485,14 +638,49 @@ export function AIAssistant() {
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt)
-    triggerHaptic('medium')
+    hapticManager.button()
     setTimeout(() => handleSend(), 300)
   }
 
   const toggleAssistant = () => {
     setIsOpen(!isOpen)
     setIsMinimized(false)
-    triggerHaptic('medium')
+    hapticManager.navigate('forward')
+  }
+
+  // 複製訊息
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard.writeText(content)
+    hapticManager.success()
+    showSuccess('已複製到剪貼板', 2000)
+  }
+
+  // 刪除訊息
+  const handleDeleteMessage = async (messageId: string) => {
+    const confirmed = await showConfirm('確認刪除', '確定要刪除這條訊息嗎？')
+    if (confirmed) {
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId))
+      hapticManager.delete()
+    }
+  }
+
+  // 清空對話
+  const handleClearConversation = async () => {
+    const confirmed = await showConfirm('清空對話', '確定要清空所有對話記錄嗎？')
+    if (confirmed) {
+      setMessages([
+        {
+          id: '1',
+          role: 'assistant',
+          content: '',
+          timestamp: new Date(),
+          isJsx: true,
+          jsxContent: WELCOME_MESSAGE,
+        },
+      ])
+      setConversationHistory([])
+      hapticManager.confirm()
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -583,6 +771,63 @@ export function AIAssistant() {
               </div>
 
               <div className="flex items-center gap-1">
+                {/* 模型選擇器 */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowModelSelector(!showModelSelector)
+                      triggerHaptic('light')
+                    }}
+                    className="p-2.5 text-purple-600 hover:bg-purple-50 rounded-xl transition-all active:scale-95"
+                    title="選擇 AI 模型"
+                  >
+                    <SettingsIcon className="h-5 w-5" />
+                  </button>
+
+                  {/* 模型選擇下拉選單 */}
+                  {showModelSelector && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowModelSelector(false)}
+                      />
+                      <div className="absolute right-0 top-12 z-20 w-64 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                        <div className="p-3 bg-gradient-to-r from-purple-50 to-blue-50 border-b border-gray-100">
+                          <div className="text-sm font-semibold text-gray-700">選擇 Ollama 模型</div>
+                          <div className="text-xs text-gray-500 mt-1">本地運行，免費使用</div>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                          {OLLAMA_MODELS.map((model) => (
+                            <button
+                              key={model.id}
+                              onClick={() => {
+                                setSelectedModel(model.id)
+                                setShowModelSelector(false)
+                                triggerHaptic('medium')
+                              }}
+                              className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
+                                selectedModel === model.id ? 'bg-purple-50 border-l-4 border-l-purple-500' : ''
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className={`font-medium ${selectedModel === model.id ? 'text-purple-700' : 'text-gray-900'}`}>
+                                    {model.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-0.5">{model.desc}</div>
+                                </div>
+                                {selectedModel === model.id && (
+                                  <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <button
                   onClick={() => {
                     setIsMinimized(!isMinimized)
@@ -713,9 +958,15 @@ export function AIAssistant() {
                                 : 'bg-white text-gray-900 rounded-2xl rounded-bl-sm ios-border-thin'
                             } ${message.isStreaming ? 'animate-pulse' : ''}`}
                           >
-                            <p className="text-easy-body whitespace-pre-wrap leading-relaxed font-medium tracking-wide">
-                              {message.content}
-                            </p>
+                            {message.isJsx && message.jsxContent ? (
+                              <div className="text-easy-body leading-relaxed font-medium tracking-wide">
+                                {message.jsxContent}
+                              </div>
+                            ) : (
+                              <p className="text-easy-body whitespace-pre-wrap leading-relaxed font-medium tracking-wide">
+                                {message.content}
+                              </p>
+                            )}
 
                             {/* 元資訊 */}
                             <div className="flex items-center justify-between mt-2">
@@ -815,6 +1066,20 @@ export function AIAssistant() {
                       />
                     </div>
 
+                    {/* 麥克風按鈕 */}
+                    <button
+                      onClick={isListening ? stopVoiceRecognition : startVoiceRecognition}
+                      disabled={isLoading}
+                      className={`p-3 rounded-xl transition-all active:scale-95 ${
+                        isListening
+                          ? 'bg-red-500 text-white animate-pulse'
+                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      }`}
+                      title={isListening ? '停止語音輸入' : '語音輸入'}
+                    >
+                      {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    </button>
+
                     {/* 發送按鈕 */}
                     <button
                       onClick={handleSend}
@@ -832,7 +1097,9 @@ export function AIAssistant() {
                     <p className="text-[10px] text-gray-400 flex items-center gap-1.5">
                       <span>{AI_NAME}</span>
                       <span className="text-gray-300">•</span>
-                      <span className="text-gray-500">{providerName}</span>
+                      <span className="text-gray-500">
+                        {OLLAMA_MODELS.find(m => m.id === selectedModel)?.name || providerName}
+                      </span>
 
                       {/* 連接狀態指示器 */}
                       {connectionStatus === 'checking' && (

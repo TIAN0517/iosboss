@@ -77,19 +77,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo 和標題 */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 p-5 rounded-3xl shadow-2xl mb-6 relative w-[98px] h-[98px]">
+          <div className="inline-flex items-center justify-center bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 p-5 rounded-3xl shadow-2xl mb-6 w-[98px] h-[98px]">
             <BrandIcon size={48} className="text-white" />
-            {/* 老闆娘皇冠標識 */}
-            <div className="absolute -top-2 -right-2 bg-yellow-400 p-2 rounded-full shadow-lg z-10">
-              <Crown className="h-5 w-5 text-yellow-800" />
-            </div>
           </div>
           <h1 className="text-easy-title font-bold text-gray-900 mb-2">
             九九瓦斯行管理系統
           </h1>
           <p className="text-easy-body text-gray-600 flex items-center justify-center gap-2">
-            <Crown className="h-5 w-5 text-yellow-600" />
-            老闆娘專屬管理系統
+            <Shield className="h-5 w-5 text-orange-600" />
+            專業管理系統
           </p>
           <p className="text-easy-caption text-gray-500 mt-1">
             2025 安全加強版
@@ -99,17 +95,17 @@ export default function LoginPage() {
         {/* 登入表單 */}
         <IOSCard className="shadow-2xl">
           <IOSCardHeader className="text-center pb-4">
-            <IOSCardTitle>歡迎回來，老闆娘</IOSCardTitle>
-            <IOSCardDescription>請輸入您的專屬管理員帳號密碼</IOSCardDescription>
+            <IOSCardTitle>歡迎回來</IOSCardTitle>
+            <IOSCardDescription>請輸入您的帳號密碼</IOSCardDescription>
           </IOSCardHeader>
           <IOSCardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* 安全提示 */}
-              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 flex items-start gap-3">
-                <Shield className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+                <Shield className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-semibold text-yellow-800">老闆娘專屬系統</p>
-                  <p className="text-yellow-700 mt-1">本系統僅供老闆娘使用，其他人無法登入</p>
+                  <p className="font-semibold text-blue-800">安全管理系統</p>
+                  <p className="text-blue-700 mt-1">請使用您的專屬帳號登入</p>
                 </div>
               </div>
 
@@ -132,11 +128,11 @@ export default function LoginPage() {
               {/* 帳號輸入 */}
               <div>
                 <label className="block text-easy-body font-semibold text-gray-900 mb-2">
-                  老闆娘帳號
+                  帳號
                 </label>
                 <IOSInput
                   type="text"
-                  placeholder="請輸入您的管理員帳號"
+                  placeholder="請輸入您的帳號"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
@@ -174,8 +170,8 @@ export default function LoginPage() {
                 size="lg"
                 className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
               >
-                <Crown className="h-5 w-5 mr-2" />
-                {loading ? '登入中...' : '老闆娘登入'}
+                <LogIn className="h-5 w-5 mr-2" />
+                {loading ? '登入中...' : '登入'}
               </IOSButton>
             </form>
 
@@ -184,14 +180,8 @@ export default function LoginPage() {
               <p className="text-easy-caption text-gray-500 text-center">
                 🔐 安全登入系統 • 數據加密傳輸
               </p>
-              <p className="text-easy-caption text-red-500 text-center mt-2 font-medium">
-                ⚠️ 非老闆娘帳號無法登入此系統
-              </p>
-              <p className="text-easy-caption text-gray-400 text-center mt-4">
-                員工帳號申請？{' '}
-                <a href="/register" className="text-blue-600 hover:underline font-medium">
-                  點擊這裡申請
-                </a>
+              <p className="text-easy-caption text-blue-500 text-center mt-2 font-medium">
+                ⚠️ 請使用授權帳號登入
               </p>
             </div>
           </IOSCardContent>

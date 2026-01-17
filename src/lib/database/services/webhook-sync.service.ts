@@ -221,7 +221,7 @@ export class WebhookSyncService {
         ...(system.headers as Record<string, string> || {}),
       };
 
-      // 添加 API Key
+      // 新增 API Key
       if (system.apiKey) {
         headers['Authorization'] = `Bearer ${system.apiKey}`;
       }
@@ -294,7 +294,7 @@ export class WebhookSyncService {
         orderBy: { createdAt: 'desc' },
         take: limit,
         include: {
-          // 如果需要關聯系統信息
+          // 如果需要關聯系統資訊
         },
       });
 

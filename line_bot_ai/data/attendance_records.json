@@ -1,0 +1,17 @@
+[
+  {"user_id": "", "user_name": "小凱", "date": "2025-01-12", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "彥榮", "date": "2025-01-12", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "bossjy", "date": "2025-01-12", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "小凱", "date": "2025-01-13", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "彥榮", "date": "2025-01-13", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "bossjy", "date": "2025-01-13", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "小凱", "date": "2025-01-14", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "彥榮", "date": "2025-01-14", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "bossjy", "date": "2025-01-14", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "小凱", "date": "2025-01-15", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "彥榮", "date": "2025-01-15", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "bossjy", "date": "2025-01-15", "clock_in": "07:50", "clock_out": "14:00"},
+  {"user_id": "", "user_name": "小凱", "date": "2025-01-16", "clock_in": "07:50", "clock_out": null},
+  {"user_id": "", "user_name": "彥榮", "date": "2025-01-16", "clock_in": "07:50", "clock_out": null},
+  {"user_id": "", "user_name": "bossjy", "date": "2025-01-16", "clock_in": "07:50", "clock_out": null}
+]

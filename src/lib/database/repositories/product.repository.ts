@@ -1,6 +1,6 @@
 /**
  * Product Repository
- * 产品数据访问层 - 产品管理核心逻辑
+ * 產品數據访问层 - 產品管理核心逻辑
  */
 
 import { Prisma } from '@prisma/client';
@@ -14,7 +14,7 @@ import {
   BusinessError,
 } from '../types';
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 export interface ProductCreateInput {
   categoryId: string;
@@ -59,14 +59,14 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
     };
   }
 
-  // ==================== 核心业务逻辑 ====================
+  // ==================== 核心業務逻辑 ====================
 
   /**
-   * 创建产品
+   * 創建產品
    */
   async createProduct(data: ProductCreateInput): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
-      // 1. 验证分类
+      // 1. 驗證分類別
       const category = await tx.productCategory.findUnique({
         where: { id: data.categoryId },
       });
@@ -79,7 +79,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         throw new ValidationError('Cannot create product in inactive category');
       }
 
-      // 2. 验证价格
+      // 2. 驗證价格
       if (data.price <= 0) {
         throw new ValidationError('Price must be positive');
       }
@@ -92,7 +92,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         throw new ValidationError('Cost should be less than price for profit margin');
       }
 
-      // 3. 验证编码唯一性
+      // 3. 驗證编码唯一性
       if (data.code) {
         const existing = await tx.product.findUnique({
           where: { code: data.code },
@@ -103,7 +103,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         }
       }
 
-      // 4. 创建产品
+      // 4. 創建產品
       const product = await tx.product.create({
         data: {
           categoryId: data.categoryId,
@@ -118,7 +118,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         include: this.includeRelations,
       });
 
-      // 5. 创建库存记录
+      // 5. 創建庫存記錄
       await tx.inventory.create({
         data: {
           productId: product.id,
@@ -132,7 +132,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 更新产品
+   * 更新產品
    */
   async updateProduct(productId: string, data: ProductUpdateInput): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
@@ -144,7 +144,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         throw new NotFoundError('Product', productId);
       }
 
-      // 验证编码唯一性
+      // 驗證编码唯一性
       if (data.code && data.code !== product.code) {
         const existing = await tx.product.findUnique({
           where: { code: data.code },
@@ -155,7 +155,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         }
       }
 
-      // 验证价格
+      // 驗證价格
       const price = data.price ?? product.price;
       const cost = data.cost ?? product.cost;
 
@@ -182,7 +182,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 删除产品（软删除 - 设为不活跃）
+   * 刪除產品（软刪除 - 设为不活跃）
    */
   async deleteProduct(productId: string): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
@@ -195,7 +195,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         throw new NotFoundError('Product', productId);
       }
 
-      // 检查是否有库存
+      // 檢查是否有庫存
       const stock = product.inventory?.quantity || 0;
       if (stock > 0) {
         throw new BusinessError(
@@ -203,7 +203,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         );
       }
 
-      // 检查是否有未完成的订单
+      // 檢查是否有未完成的訂單
       const pendingOrders = await tx.gasOrderItem.count({
         where: {
           productId,
@@ -219,7 +219,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
         );
       }
 
-      // 软删除
+      // 软刪除
       const deactivated = await tx.product.update({
         where: { id: productId },
         data: { isActive: false },
@@ -230,10 +230,10 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
     });
   }
 
-  // ==================== 查询方法 ====================
+  // ==================== 查詢方法 ====================
 
   /**
-   * 按编码查找产品
+   * 按编码查找產品
    */
   async findByCode(code: string): Promise<Result<any | null>> {
     try {
@@ -248,7 +248,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 获取活跃产品
+   * 獲取活跃產品
    */
   async getActiveProducts(): Promise<Result<any[]>> {
     try {
@@ -264,7 +264,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 获取低库存产品
+   * 獲取低庫存產品
    */
   async getLowStockProducts(): Promise<Result<any[]>> {
     try {
@@ -287,7 +287,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 按分类获取产品
+   * 按分類別獲取產品
    */
   async getByCategory(categoryId: string): Promise<Result<any[]>> {
     try {
@@ -306,7 +306,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 搜索产品
+   * 搜尋產品
    */
   async searchProducts(query: string): Promise<Result<any[]>> {
     try {
@@ -328,7 +328,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 高级筛选产品
+   * 高级篩選產品
    */
   async filter(filter: ProductFilter, options?: QueryOptions): Promise<Result<any[]>> {
     try {
@@ -378,7 +378,7 @@ export class ProductRepository extends BaseRepository<any, ProductCreateInput, P
   }
 
   /**
-   * 获取产品统计
+   * 獲取產品統計
    */
   async getStatistics(): Promise<Result<{
     total: number;

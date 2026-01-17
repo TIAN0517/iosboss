@@ -1,6 +1,6 @@
 /**
  * Check Repository
- * 支票数据访问层 - 支票管理核心逻辑
+ * 支票數據访问层 - 支票管理核心逻辑
  */
 
 import { Prisma } from '@prisma/client';
@@ -14,7 +14,7 @@ import {
   BusinessError,
 } from '../types';
 
-// ==================== 类型定义 ====================
+// ==================== 類別型定义 ====================
 
 export type CheckStatus = 'pending' | 'deposited' | 'cleared' | 'bounced' | 'cancelled';
 
@@ -45,7 +45,7 @@ export interface CheckFilter {
   endDate?: Date;
   minAmount?: number;
   maxAmount?: number;
-  isAssigned?: boolean;  // 是否已关联订单
+  isAssigned?: boolean;  // 是否已关联訂單
 }
 
 export interface CheckStats {
@@ -72,14 +72,14 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
     };
   }
 
-  // ==================== 核心业务逻辑 ====================
+  // ==================== 核心業務逻辑 ====================
 
   /**
-   * 创建支票
+   * 創建支票
    */
   async createCheck(data: CheckCreateInput): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
-      // 1. 验证支票号唯一性
+      // 1. 驗證支票号唯一性
       const existing = await tx.check.findUnique({
         where: { checkNo: data.checkNo },
       });
@@ -88,12 +88,12 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
         throw new ValidationError('Check number already exists');
       }
 
-      // 2. 验证金额
+      // 2. 驗證金额
       if (data.amount <= 0) {
         throw new ValidationError('Check amount must be positive');
       }
 
-      // 3. 验证客户（如果提供）
+      // 3. 驗證客戶（如果提供）
       if (data.customerId) {
         const customer = await tx.customer.findUnique({
           where: { id: data.customerId },
@@ -104,7 +104,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
         }
       }
 
-      // 4. 创建支票
+      // 4. 創建支票
       const check = await tx.check.create({
         data: {
           customerId: data.customerId || null,
@@ -135,7 +135,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
         throw new NotFoundError('Check', checkId);
       }
 
-      // 验证支票号唯一性
+      // 驗證支票号唯一性
       if (data.checkNo && data.checkNo !== check.checkNo) {
         const existing = await tx.check.findUnique({
           where: { checkNo: data.checkNo },
@@ -146,12 +146,12 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
         }
       }
 
-      // 验证状态转换
+      // 驗證状态转换
       if (data.status && data.status !== check.status) {
         this.validateStatusTransition(check.status, data.status);
       }
 
-      // 验证金额
+      // 驗證金额
       if (data.amount !== undefined && data.amount <= 0) {
         throw new ValidationError('Check amount must be positive');
       }
@@ -167,7 +167,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 删除支票
+   * 刪除支票
    */
   async deleteCheck(checkId: string): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
@@ -179,14 +179,14 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
         throw new NotFoundError('Check', checkId);
       }
 
-      // 只允许删除 pending 状态的支票
+      // 只允许刪除 pending 状态的支票
       if (check.status !== 'pending') {
         throw new BusinessError(
           `Cannot delete check with status ${check.status}. Only pending checks can be deleted.`
         );
       }
 
-      // 如果已关联订单，不允许删除
+      // 如果已关联訂單，不允许刪除
       if (check.orderId) {
         throw new BusinessError(
           'Cannot delete check that is already assigned to an order'
@@ -203,7 +203,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 关联订单
+   * 关联訂單
    */
   async assignToOrder(checkId: string, orderId: string, customerId: string): Promise<Result<any>> {
     return this.withTransaction(async (tx) => {
@@ -264,7 +264,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
     });
   }
 
-  // ==================== 查询方法 ====================
+  // ==================== 查詢方法 ====================
 
   /**
    * 按支票号查找
@@ -282,7 +282,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 获取待处理支票
+   * 獲取待處理支票
    */
   async getPendingChecks(): Promise<Result<any[]>> {
     try {
@@ -298,7 +298,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 获取即将到期的支票
+   * 獲取即將到期的支票
    */
   async getDueChecks(days: number = 7): Promise<Result<any[]>> {
     try {
@@ -324,7 +324,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 获取逾期支票
+   * 獲取逾期支票
    */
   async getOverdueChecks(): Promise<Result<any[]>> {
     try {
@@ -346,7 +346,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 按客户获取支票
+   * 按客戶獲取支票
    */
   async getByCustomer(customerId: string): Promise<Result<any[]>> {
     try {
@@ -362,7 +362,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 高级筛选
+   * 高级篩選
    */
   async filter(filter: CheckFilter, options?: QueryOptions): Promise<Result<any[]>> {
     try {
@@ -417,7 +417,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   }
 
   /**
-   * 获取统计
+   * 獲取統計
    */
   async getStatistics(): Promise<Result<CheckStats>> {
     try {
@@ -472,7 +472,7 @@ export class CheckRepository extends BaseRepository<any, CheckCreateInput, Check
   // ==================== 辅助方法 ====================
 
   /**
-   * 验证状态转换
+   * 驗證状态转换
    */
   private validateStatusTransition(currentStatus: CheckStatus, newStatus: CheckStatus): void {
     const validTransitions: Record<CheckStatus, CheckStatus[]> = {

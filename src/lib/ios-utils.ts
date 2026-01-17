@@ -3,7 +3,7 @@
  * 提供觸控優化、手勢檢測、視覺反饋等功能
  */
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 
 /**
  * 檢測是否為 iOS 設備
@@ -802,4 +802,185 @@ export function useOrientationChange(callback: (orientation: 'portrait' | 'lands
       window.removeEventListener('resize', handleChange);
     };
   }, [callback]);
+}
+
+/**
+ * iOS 邊緣滑動返回手勢 Hook
+ * 用於檢測從螢幕左邊緣向右滑動的手勢（模擬 iOS 返回手勢）
+ */
+export function useEdgeSwipe(
+  onSwipeBack?: () => void,
+  edgeThreshold: number = 20,
+  swipeThreshold: number = 100
+) {
+  const touchStartRef = useRef({ x: 0, y: 0, isEdge: false });
+  const isDraggingRef = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent | TouchEvent) => {
+    const touch = e.touches[0];
+    const isEdge = touch.clientX <= edgeThreshold;
+
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      isEdge,
+    };
+
+    if (isEdge) {
+      isDraggingRef.current = false;
+    }
+  }, [edgeThreshold]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent | TouchEvent) => {
+    if (!touchStartRef.current.isEdge) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+
+    // 檢測是否開始拖拽（向右滑動超過 10px）
+    if (!isDraggingRef.current && deltaX > 10) {
+      isDraggingRef.current = true;
+      triggerHaptic('selection');
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent | TouchEvent) => {
+    if (!touchStartRef.current.isEdge || !isDraggingRef.current) {
+      touchStartRef.current = { x: 0, y: 0, isEdge: false };
+      return;
+    }
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+
+    // 向右滑動超過閾值，且垂直移動不大（確保是水平滑動）
+    if (deltaX > swipeThreshold && deltaY < 50) {
+      onSwipeBack?.();
+      triggerHaptic('medium');
+    }
+
+    // 重置狀態
+    touchStartRef.current = { x: 0, y: 0, isEdge: false };
+    isDraggingRef.current = false;
+  }, [onSwipeBack, swipeThreshold]);
+
+  return {
+    edgeSwipeProps: {
+      onTouchStart: handleTouchStart,
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd,
+    },
+    isDragging: isDraggingRef.current,
+  };
+}
+
+/**
+ * iOS 下拉刷新手勢 Hook
+ * 用於檢測下拉刷新手勢
+ */
+export function usePullToRefresh(
+  onRefresh: () => Promise<void> | void,
+  threshold: number = 80
+) {
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const pullStartRef = useRef(0);
+  const isDraggingRef = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent | TouchEvent) => {
+    const touch = e.touches[0];
+    const target = e.target as HTMLElement;
+    const scrollableElement = target.closest('[data-scrollable]') as HTMLElement || document.documentElement;
+
+    // 只在頂部時啟用下拉刷新
+    if (scrollableElement.scrollTop === 0) {
+      touchStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+      };
+      pullStartRef.current = touch.clientY;
+      isDraggingRef.current = false;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent | TouchEvent) => {
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    const deltaX = Math.abs(touch.clientX - touchStartRef.current.x);
+
+    // 只在下拉且水平移動不大時觸發
+    if (deltaY > 10 && deltaX < 50 && deltaY > 0) {
+      const target = e.target as HTMLElement;
+      const scrollableElement = target.closest('[data-scrollable]') as HTMLElement || document.documentElement;
+
+      if (scrollableElement.scrollTop === 0 && !isRefreshing) {
+        e.preventDefault();
+        isDraggingRef.current = true;
+
+        // 計算下拉距離（帶阻尼效果）
+        const distance = Math.min(deltaY * 0.4, threshold * 1.5);
+        setPullDistance(distance);
+        setIsPulling(true);
+
+        // 震動反饋（當達到閾值時）
+        if (distance >= threshold && pullDistance < threshold) {
+          triggerHaptic('medium');
+        }
+      }
+    }
+  }, [threshold, isRefreshing, pullDistance]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isDraggingRef.current) {
+      setPullDistance(0);
+      setIsPulling(false);
+      return;
+    }
+
+    // 如果下拉距離超過閾值，執行刷新
+    if (pullDistance >= threshold) {
+      setIsRefreshing(true);
+      triggerHaptic('success');
+      setPullDistance(threshold);
+
+      try {
+        await onRefresh();
+      } finally {
+        // 延迟重置以顯示完成動畫
+        setTimeout(() => {
+          setIsRefreshing(false);
+          setPullDistance(0);
+          setIsPulling(false);
+        }, 500);
+      }
+    } else {
+      // 未達到閾值，彈回
+      setPullDistance(0);
+      setIsPulling(false);
+    }
+
+    isDraggingRef.current = false;
+  }, [pullDistance, threshold, onRefresh]);
+
+  const reset = useCallback(() => {
+    setPullDistance(0);
+    setIsPulling(false);
+    setIsRefreshing(false);
+  }, []);
+
+  return {
+    pullToRefreshProps: {
+      onTouchStart: handleTouchStart,
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd,
+    },
+    isPulling,
+    pullDistance,
+    isRefreshing,
+    canRefresh: pullDistance >= threshold,
+    reset,
+  };
 }
