@@ -1,38 +1,7 @@
-# Cloudflare Tunnel 設定
-# 本地開發配置 - 指向本地服務
-tunnel: 6b975853-d68a-4262-9870-bc10aade2759
-credentials-file: C:\\Users\\tian7\\.cloudflared\\6b975853-d68a-4262-9870-bc10aade2759.json
+tunnel: YOUR-TUNNEL-ID
+credentials-file: ./cloudflared-credentials.json
 
 ingress:
-  # Boss AI - 指向 Next.js 主系統（端口 9999）
-  - hostname: bossai.tiankai.it.com
-    service: http://127.0.0.1:9999
-    originRequest:
-      http2Origin: false
-      noTLSVerify: true
-      connectTimeout: 30s
-      tcpKeepAlive: 30s
-      keepAliveConnections: 100
-      keepAliveTimeout: 90s
-
-  # LINE Bot Webhook - 指向 Python AI 服務（端口 8888）
-  - hostname: linebot.tiankai.it.com
-    service: http://127.0.0.1:8888
-    originRequest:
-      http2Origin: false
-      noTLSVerify: true
-      connectTimeout: 30s
-      tcpKeepAlive: 30s
-      keepAliveConnections: 100
-      keepAliveTimeout: 90s
-
+  - hostname: ai.yourdomain.com
+    service: http://localhost:11434
   - service: http_status:404
-
-# 關鍵修復：使用 HTTP2 而不是 QUIC（更穩定）
-protocol: http2
-
-ipVersion: "4"
-no-autoupdate: true
-loglevel: info
-# 增加日誌詳細程度
-transport-loglevel: info
