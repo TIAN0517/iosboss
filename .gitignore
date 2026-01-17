@@ -84,3 +84,7 @@ docker-volumes/
 # backup files (except migration scripts)
 *.sql
 !db/init/01-init.sql
+
+# large executable files (should not be in git)
+*.exe
+*.msi
