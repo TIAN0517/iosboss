@@ -1,0 +1,28 @@
+tunnel: 26f777fc-02c4-4ea4-8c31-2fc009a3ffeb
+credentials-file: C:\Users\tian7\.cloudflared\26f777fc-02c4-4ea4-8c31-2fc009a3ffeb.json
+
+ingress:
+  # bossai.tiankai.it.com -> Next.js 管理後台 (port 9999)
+  - hostname: bossai.tiankai.it.com
+    service: http://127.0.0.1:9999
+    originRequest:
+      http2Origin: false
+      noTLSVerify: true
+      connectTimeout: 30s
+      tcpKeepAlive: 30s
+      keepAliveConnections: 100
+      keepAliveTimeout: 90s
+  # linebot.tiankai.it.com -> LINE Bot 服務 (port 9997)
+  - hostname: linebot.tiankai.it.com
+    service: http://127.0.0.1:9997
+    originRequest:
+      http2Origin: false
+      noTLSVerify: true
+      connectTimeout: 30s
+      tcpKeepAlive: 30s
+      keepAliveConnections: 100
+      keepAliveTimeout: 90s
+  # 默認 404
+  - service: http_status:404
+
+protocol: http2

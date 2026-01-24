@@ -1,0 +1,44 @@
+{
+  "name": "九九瓦斯行管理系統",
+  "short_name": "瓦斯行",
+  "description": "專為瓦斯行設計的管理系統，簡單易用 - Jy技術團隊",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "portrait",
+  "scope": "/",
+  "id": "/bossai-dashboard",
+  "icons": [
+    {
+      "src": "/jyt.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "zh-TW",
+  "developer": {
+    "name": "Jy技術團隊",
+    "url": "https://jytian.it.com"
+  }
+}

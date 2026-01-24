@@ -1,0 +1,82 @@
+# ========================================
+# Vercel 忽略文件
+# 防止部署超過 100 MB 限制
+# ========================================
+
+# 依賴套件
+node_modules
+.pnp
+.pnp.*
+
+# 構建輸出
+.next
+out
+build
+dist
+
+# 本地文件
+.env
+.env.local
+.env.development
+.env.test
+*.log
+*.tmp
+
+# 大型可執行文件
+*.exe
+*.msi
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Docker
+Docker-Desktop-Installer.exe
+docker-volumes
+
+# 雲端隧道
+cloudflared.exe
+caddy.exe
+
+# 本地服務
+start-*.bat
+stop-*.bat
+status-*.bat
+watchdog*.bat
+
+# 測試文件
+test-*.js
+test-*.html
+test-*.bat
+*.wav
+
+# Git
+.git
+.gitignore
+.netlify
+
+# IDE
+.vscode
+.idea
+.DS_Store
+
+# 腳本文件
+scripts/temp
+*.swp
+*.swo
+
+# 備份
+backups
+*.sql
+!db/init/01-init.sql
+
+# 文檔
+*.md
+!README.md
+!DEPLOYMENT.md
+!NETLIFY.md
+
+# 其他
+.nul
+Thumbs.db

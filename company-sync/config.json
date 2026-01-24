@@ -1,0 +1,30 @@
+{
+  "mssql": {
+    "server": "localhost",
+    "port": 1433,
+    "database": "你的資料庫名稱",
+    "authentication": {
+      "type": "windows",
+      "options": {
+        "encrypt": true,
+        "trustServerCertificate": true
+      }
+    }
+  },
+  "webhook": {
+    "url": "https://bossai.jytian.it.com/api/sync/company/webhook",
+    "secret": "jyt-gas-webhook-2024"
+  },
+  "sync": {
+    "intervalSeconds": 60,
+    "batchSize": 100,
+    "syncOrders": true,
+    "syncCustomers": true,
+    "syncInventory": true
+  },
+  "tables": {
+    "orders": "Orders",
+    "customers": "Customers",
+    "inventory": "Inventory"
+  }
+}

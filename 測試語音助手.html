@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>語音助手測試指南</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 700px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      font-size: 32px;
+      color: #333;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 18px;
+    }
+    .step {
+      background: #f8f9fa;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      border-left: 5px solid #667eea;
+    }
+    .step-number {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 40px;
+      font-weight: bold;
+      font-size: 20px;
+      margin-right: 15px;
+    }
+    .step-title {
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 15px;
+    }
+    .step-content {
+      color: #555;
+      line-height: 1.8;
+      font-size: 16px;
+    }
+    .big-button {
+      display: block;
+      width: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 16px;
+      text-decoration: none;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      margin: 15px 0;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    .big-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    .highlight {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      padding: 15px 25px;
+      border-radius: 50px;
+      display: inline-block;
+      font-weight: bold;
+      margin: 10px 5px;
+    }
+    .arrow {
+      font-size: 40px;
+      text-align: center;
+      animation: bounce 1s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .tip {
+      background: #fff3cd;
+      border-left: 5px solid #ffc107;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .tip strong {
+      color: #856404;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎤 語音助手測試指南</h1>
+    <p class="subtitle">跟豆包一樣的語音對話體驗</p>
+
+    <a href="http://localhost:9999" class="big-button" target="_blank">
+      🚀 第一步：打開系統（點這裡）
+    </a>
+
+    <div class="step">
+      <div class="step-title">
+        <span class="step-number">1</span>
+        打開系統後，往右下角看
+      </div>
+      <div class="step-content">
+        <div class="arrow">👇</div>
+        <p>在頁面的<strong>右下角</strong>，會看到一個<strong>紫粉色的圓形按鈕</strong></p>
+        <p>有<strong>麥克風圖標</strong> 🎤</p>
+        <p>按鈕會<strong>閃爍</strong>吸引注意 ✨</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">
+        <span class="step-number">2</span>
+        點擊那個紫粉色圓形按鈕
+      </div>
+      <div class="step-content">
+        點擊後會進入<strong>全屏語音對話界面</strong><br>
+        背景是深紫色，中央有個大圓形按鈕
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">
+        <span class="step-number">3</span>
+        點擊中央的大圓形按鈕
+      </div>
+      <div class="step-content">
+        點擊後開始<strong>語音識別</strong><br>
+        您可以說：<span class="highlight">「你好」</span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">
+        <span class="step-number">4</span>
+        說完後，AI 會回覆並朗讀
+      </div>
+      <div class="step-content">
+        ✅ 您說的話會顯示在屏幕上<br>
+        ✅ AI 回應會顯示在屏幕上<br>
+        ✅ <strong>AI 會用聲音朗讀回應</strong> 🔊
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>💡 重要提示：</strong><br>
+      第一次使用時，瀏覽器會詢問：<br>
+      <em>「允許此網站使用您的麥克風？」</em><br>
+      <strong>請點擊「允許」</strong>，否則無法使用語音功能！
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="http://localhost:9999" class="big-button" target="_blank">
+        🎤 立即測試語音助手
+      </a>
+    </div>
+
+    <div style="margin-top: 30px; padding: 20px; background: #e7f3ff; border-radius: 12px;">
+      <strong>📝 測試用的語音範例：</strong><br>
+      <span class="highlight">「你好」</span>
+      <span class="highlight">「今天賺了多少」</span>
+      <span class="highlight">「庫存還有沒有」</span>
+    </div>
+  </div>
+</body>
+</html>

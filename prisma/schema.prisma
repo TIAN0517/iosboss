@@ -1,0 +1,756 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String           @id @default(cuid())
+  username         String           @unique
+  password         String
+  email            String           @unique
+  name             String?
+  role             String           @default("staff")
+  phone            String?
+  department       String?
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  costRecords      CostRecord[]
+  deliveries       DeliveryRecord[]
+  orders           GasOrder[]
+  dispatchedOrders DispatchRecord[]
+  driverLocations  DriverLocation[]
+}
+
+model Customer {
+  id                String             @id @default(cuid())
+  name              String
+  phone             String
+  address           String
+  groupId           String?
+  paymentType       String             @default("cash")
+  note              String?
+  balance           Float              @default(0)
+  creditLimit       Float              @default(0)
+  lastOrderAt       DateTime?
+  lastMeterReadAt   DateTime?
+  lineUserId        String?            @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  calls             CallRecord[]       @relation("CustomerCallRecord")
+  checks            Check[]
+  group             CustomerGroup?     @relation(fields: [groupId], references: [id])
+  extra             CustomerExtra?
+  deliveries        DeliveryRecord[]
+  orders            GasOrder[]
+  meterReadings     MeterReading[]
+  monthlyStatements MonthlyStatement[] @relation("CustomerMonthlyStatement")
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[] @relation("CategoryProducts")
+}
+
+model Product {
+  id          String                 @id @default(cuid())
+  categoryId  String
+  name        String
+  code        String?
+  price       Float
+  cost        Float
+  capacity    String?
+  unit        String                 @default("個")
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  orders      GasOrderItem[]
+  inventory   Inventory?
+  inventoryTx InventoryTransaction[]
+  category    ProductCategory        @relation("CategoryProducts", fields: [categoryId], references: [id])
+  alerts      InventoryAlert[]
+}
+
+model Inventory {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  quantity  Int      @default(0)
+  minStock  Int      @default(10)
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model InventoryTransaction {
+  id             String   @id @default(cuid())
+  productId      String
+  type           String
+  quantity       Int
+  quantityBefore Int
+  quantityAfter  Int
+  reason         String?
+  createdAt      DateTime @default(now())
+  product        Product  @relation(fields: [productId], references: [id])
+}
+
+model CustomerGroup {
+  id          String     @id @default(cuid())
+  name        String
+  discount    Float      @default(0)
+  creditTerm  Int?
+  description String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  customers   Customer[]
+}
+
+model GasOrder {
+  id             String          @id @default(cuid())
+  customerId     String
+  orderNo        String          @unique
+  orderDate      DateTime        @default(now())
+  deliveryDate   DateTime?
+  completedAt    DateTime?
+  status         String          @default("pending")
+  subtotal       Float
+  discount       Float           @default(0)
+  deliveryFee    Float           @default(0)
+  total          Float
+  paidAmount     Float           @default(0)
+  note           String?
+  checkId        String?         @unique
+  driverId       String?
+  deliveryNumber String?         @unique
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  delivery       DeliveryRecord? @relation("DeliveryRecordOrder")
+  check          Check?          @relation(fields: [checkId], references: [id])
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  driver         User?           @relation(fields: [driverId], references: [id])
+  items          GasOrderItem[]
+
+  @@index([deliveryNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model GasOrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+  order     GasOrder @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model MeterReading {
+  id              String   @id @default(cuid())
+  customerId      String
+  previousReading Float    @default(0)
+  currentReading  Float    @default(0)
+  usage           Float    @default(0)
+  unitPrice       Float
+  amount          Float
+  periodStart     DateTime
+  periodEnd       DateTime
+  readingDate     DateTime @default(now())
+  note            String?
+  createdAt       DateTime @default(now())
+  customer        Customer @relation(fields: [customerId], references: [id])
+}
+
+model Check {
+  id         String    @id @default(cuid())
+  customerId String?
+  orderId    String?   @unique
+  checkNo    String    @unique
+  bankName   String
+  checkDate  DateTime
+  amount     Float
+  status     String    @default("pending")
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  order      GasOrder?
+}
+
+model DeliveryRecord {
+  id           String    @id @default(cuid())
+  orderId      String?   @unique
+  customerId   String
+  driverId     String?
+  status       String    @default("pending")
+  deliveryDate DateTime  @default(now())
+  completedAt  DateTime?
+  signature    String?
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  driver       User?     @relation(fields: [driverId], references: [id])
+  order        GasOrder? @relation("DeliveryRecordOrder", fields: [orderId], references: [id])
+}
+
+model Promotion {
+  id            String   @id @default(cuid())
+  name          String
+  type          String
+  discountValue Float    @default(0)
+  minAmount     Float?
+  startDate     DateTime
+  endDate       DateTime
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CostRecord {
+  id             String     @id @default(cuid())
+  type           String
+  category       String
+  amount         Float
+  description    String
+  date           DateTime   @default(now())
+  recordedBy     String?
+  createdAt      DateTime   @default(now())
+  items          CostItem[]
+  recordedByUser User?      @relation(fields: [recordedBy], references: [id])
+}
+
+model CostItem {
+  id           String     @id @default(cuid())
+  costRecordId String
+  item         String
+  quantity     Int?
+  unitPrice    Float
+  subtotal     Float
+  costRecord   CostRecord @relation(fields: [costRecordId], references: [id])
+}
+
+model CallRecord {
+  id          String    @id @default(cuid())
+  customerId  String?
+  phoneNumber String
+  callTime    DateTime  @default(now())
+  duration    Int       @default(0)
+  status      String    @default("missed")
+  notes       String?
+  createdAt   DateTime  @default(now())
+  customer    Customer? @relation("CustomerCallRecord", fields: [customerId], references: [id])
+}
+
+model AccountingSync {
+  id           String   @id @default(cuid())
+  syncType     String
+  recordId     String
+  syncDate     DateTime @default(now())
+  status       String   @default("pending")
+  errorMessage String?
+  systemId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ExternalSystem {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  webhookUrl  String
+  apiKey      String?
+  apiSecret   String?
+  isActive    Boolean   @default(true)
+  events      String[]
+  headers     Json?
+  retryCount  Int       @default(3)
+  timeout     Int       @default(30000)
+  lastSyncAt  DateTime?
+  lastStatus  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+model WebhookLog {
+  id           String   @id @default(cuid())
+  systemId     String
+  eventType    String
+  recordId     String
+  payload      Json
+  statusCode   Int?
+  response     String?
+  status       String
+  errorMessage String?
+  duration     Int?
+  retried      Boolean  @default(false)
+  retryCount   Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([systemId])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MonthlyStatement {
+  id          String   @id @default(cuid())
+  customerId  String
+  month       String
+  periodStart DateTime
+  periodEnd   DateTime
+  totalOrders Int      @default(0)
+  totalAmount Float    @default(0)
+  paidAmount  Float    @default(0)
+  balance     Float    @default(0)
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  customer    Customer @relation("CustomerMonthlyStatement", fields: [customerId], references: [id])
+}
+
+model CustomerExtra {
+  id             String   @id @default(cuid())
+  customerId     String   @unique
+  contactPerson  String?
+  fax            String?
+  email          String?
+  taxId          String?
+  billingAddress String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  customer       Customer @relation(fields: [customerId], references: [id])
+}
+
+model LineGroup {
+  id            String        @id @default(cuid())
+  groupId       String        @unique
+  groupName     String
+  groupType     String
+  permissions   String[]
+  isActive      Boolean       @default(true)
+  memberCount   Int?
+  description   String?
+  lastMessageAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  messages      LineMessage[]
+}
+
+model LineMessage {
+  id          String     @id @default(cuid())
+  lineGroupId String?
+  userId      String?
+  messageType String
+  content     String
+  intent      String?
+  response    String?
+  timestamp   DateTime   @default(now())
+  lineGroup   LineGroup? @relation(fields: [lineGroupId], references: [id])
+
+  @@index([lineGroupId])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model LineConversation {
+  id           String   @id @default(cuid())
+  lineUserId   String
+  groupId      String?
+  context      String   @default("{}")
+  lastMessage  String?
+  messageCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([lineUserId])
+  @@index([groupId])
+}
+
+model AuditLog {
+  id         String   @id
+  userId     String?
+  username   String?
+  action     String
+  entityType String
+  entityId   String
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  timestamp  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@index([entityType, timestamp])
+}
+
+model DriverLocation {
+  id        String   @id @default(cuid())
+  driverId  String
+  latitude  Float
+  longitude Float
+  accuracy  Float?
+  speed     Float?
+  heading   Float?
+  address   String?
+  note      String?
+  createdAt DateTime @default(now())
+  driver    User     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([createdAt])
+  @@map("driver_locations")
+}
+
+model DispatchRecord {
+  id           String    @id @default(cuid())
+  orderId      String
+  driverId     String
+  status       String    @default("pending")
+  dispatchedAt DateTime  @default(now())
+  acceptedAt   DateTime?
+  arrivedAt    DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  driver       User      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, driverId])
+  @@index([driverId])
+  @@index([orderId])
+  @@index([status])
+  @@map("dispatch_records")
+}
+
+model SyncChange {
+  id         String    @id @default(cuid())
+  tableName  String
+  recordId   String
+  operation  String
+  recordData Json
+  timestamp  DateTime  @default(now())
+  synced     Boolean   @default(false)
+  syncedAt   DateTime?
+  error      String?
+
+  @@index([synced])
+  @@index([tableName])
+  @@index([timestamp])
+  @@map("sync_changes")
+}
+
+model SyncStatus {
+  id           String    @id @default(cuid())
+  lastSyncAt   DateTime?
+  syncCount    Int       @default(0)
+  pendingCount Int       @default(0)
+  errorCount   Int       @default(0)
+  status       String    @default("idle")
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("sync_status")
+}
+
+model InventoryAlert {
+  id         String    @id @default(cuid())
+  productId  String
+  quantity   Int
+  alertLevel Int
+  resolved   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  product    Product   @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([resolved])
+  @@map("inventory_alerts")
+}
+
+model ScheduleSheet {
+  id          String            @id @default(cuid())
+  year        Int
+  month       Int
+  title       String
+  rawText     String
+  status      String            @default("pending")
+  submittedBy String?
+  reviewedBy  String?
+  submittedAt DateTime          @default(now())
+  reviewedAt  DateTime?
+  note        String?
+  stations    ScheduleStation[]
+
+  @@unique([year, month])
+  @@index([status])
+  @@index([submittedAt])
+  @@map("schedule_sheets")
+}
+
+model ScheduleStation {
+  id          String             @id @default(cuid())
+  sheetId     String
+  stationName String
+  employees   EmployeeSchedule[]
+  sheet       ScheduleSheet      @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+  @@index([sheetId])
+  @@map("schedule_stations")
+}
+
+model EmployeeSchedule {
+  id           String          @id @default(cuid())
+  stationId    String
+  employeeName String
+  scheduleDate DateTime
+  displayDate  String
+  isHalfDay    Boolean         @default(false)
+  isMorning    Boolean         @default(true)
+  note         String?
+  station      ScheduleStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([scheduleDate])
+  @@index([employeeName])
+  @@map("employee_schedules")
+}
+
+model AttendanceRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  userName  String
+  date      String
+  clockIn   String?
+  clockOut  String?
+  workHours Float?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+  @@map("attendance_records")
+}
+
+model KnowledgeBase {
+  id                String               @id @default(cuid())
+  title             String
+  category          String
+  content           String
+  keywords          String[]
+  priority          Int?                 @default(0)
+  isActive          Boolean?             @default(true)
+  viewCount         Int?                 @default(0)
+  usageCount        Int?                 @default(0)
+  createdAt         DateTime?            @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime?            @default(now()) @updatedAt @db.Timestamp(6)
+  embeddings        KnowledgeEmbedding[]
+  keywordsRelations KnowledgeKeyword[]
+  usageLogs         KnowledgeUsageLog[]
+
+  @@index([category], map: "idx_knowledge_base_category")
+  @@index([isActive], map: "idx_knowledge_base_isActive")
+  @@index([priority], map: "idx_knowledge_base_priority")
+  @@map("knowledge_base")
+}
+
+model KnowledgeKeyword {
+  id              String        @id @default(cuid())
+  knowledgeBaseId String
+  keyword         String
+  createdAt       DateTime?     @default(now()) @db.Timestamp(6)
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_knowledge_keywords_base")
+
+  @@index([keyword], map: "idx_knowledge_keywords_keyword")
+  @@map("knowledge_keywords")
+}
+
+model KnowledgeUsageLog {
+  id              String        @id @default(cuid())
+  knowledgeBaseId String
+  userId          String?
+  query           String?
+  matchScore      Float?
+  timestamp       DateTime?     @default(now()) @db.Timestamp(6)
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_knowledge_usage_logs_base")
+
+  @@index([knowledgeBaseId], map: "idx_knowledge_usage_logs_base")
+  @@index([timestamp], map: "idx_knowledge_usage_logs_timestamp")
+  @@map("knowledge_usage_logs")
+}
+
+model KnowledgeEmbedding {
+  id              String        @id @default(cuid())
+  knowledgeBaseId String
+  chunkIndex      Int
+  chunkContent    String
+  embedding       String?
+  metadata        Json?
+  createdAt       DateTime?     @default(now()) @db.Timestamp(6)
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_knowledge_embeddings_base")
+
+  @@index([knowledgeBaseId], map: "idx_knowledge_embeddings_base")
+  @@map("knowledge_embeddings")
+}
+
+model LineLog {
+  id           Int       @id @default(autoincrement())
+  user_id      String?
+  user_name    String?
+  group_id     String?
+  message      String?
+  response     String?
+  timestamp    DateTime? @default(now()) @db.Timestamp(6)
+  message_type String?   @default("text")
+}
+
+model LineUser {
+  id               Int       @id @default(autoincrement())
+  line_user_id     String?   @unique
+  display_name     String?
+  first_contact    DateTime? @default(now()) @db.Timestamp(6)
+  last_interaction DateTime? @default(now()) @db.Timestamp(6)
+  total_messages   Int?      @default(0)
+}
+
+model customers {
+  id           BigInt       @id @default(autoincrement())
+  name         String       @db.VarChar(100)
+  phone        String?      @db.VarChar(20)
+  address      String?
+  payment_type String       @default("cash") @db.VarChar(20)
+  area         String?      @db.VarChar(50)
+  balance      Decimal?     @default(0) @db.Decimal
+  notes        String?
+  line_user_id String?      @db.VarChar(100)
+  active       Boolean?     @default(true)
+  created_at   DateTime?    @db.Timestamptz(6)
+  updated_at   DateTime?    @db.Timestamptz(6)
+  deleted_at   DateTime?    @db.Timestamptz(6)
+  gas_orders   gas_orders[]
+
+  @@index([deleted_at], map: "idx_customers_deleted_at")
+  @@index([line_user_id], map: "idx_customers_line_user_id")
+  @@index([phone], map: "idx_customers_phone")
+}
+
+model gas_order_items {
+  id         BigInt     @id @default(autoincrement())
+  order_id   BigInt
+  product_id BigInt
+  quantity   BigInt
+  unit_price Decimal    @db.Decimal
+  total      Decimal    @db.Decimal
+  notes      String?
+  created_at DateTime?  @db.Timestamptz(6)
+  updated_at DateTime?  @db.Timestamptz(6)
+  products   products   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gas_order_items_product")
+  gas_orders gas_orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gas_orders_items")
+
+  @@index([order_id], map: "idx_gas_order_items_order_id")
+  @@index([product_id], map: "idx_gas_order_items_product_id")
+}
+
+model gas_orders {
+  id                                 BigInt            @id @default(autoincrement())
+  customer_id                        BigInt
+  order_number                       String            @unique(map: "idx_gas_orders_order_number") @db.VarChar(50)
+  status                             String?           @default("pending") @db.VarChar(20)
+  total_amount                       Decimal?          @default(0) @db.Decimal
+  paid_amount                        Decimal?          @default(0) @db.Decimal
+  payment_method                     String?           @db.VarChar(20)
+  payment_status                     String?           @default("unpaid") @db.VarChar(20)
+  delivery_date                      DateTime?         @db.Timestamptz(6)
+  driver_id                          BigInt?
+  notes                              String?
+  delivery_notes                     String?
+  created_by                         BigInt?
+  created_at                         DateTime?         @db.Timestamptz(6)
+  updated_at                         DateTime?         @db.Timestamptz(6)
+  deleted_at                         DateTime?         @db.Timestamptz(6)
+  gas_order_items                    gas_order_items[]
+  users_gas_orders_created_byTousers users?            @relation("gas_orders_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gas_orders_creator")
+  customers                          customers         @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gas_orders_customer")
+  users_gas_orders_driver_idTousers  users?            @relation("gas_orders_driver_idTousers", fields: [driver_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gas_orders_driver")
+
+  @@index([created_by], map: "idx_gas_orders_created_by")
+  @@index([customer_id], map: "idx_gas_orders_customer_id")
+  @@index([deleted_at], map: "idx_gas_orders_deleted_at")
+  @@index([driver_id], map: "idx_gas_orders_driver_id")
+  @@index([status], map: "idx_gas_orders_status")
+}
+
+model inventories {
+  id           BigInt    @id @default(autoincrement())
+  product_id   BigInt    @unique(map: "idx_inventories_product_id")
+  quantity     BigInt?   @default(0)
+  min_stock    BigInt?   @default(10)
+  location     String?   @db.VarChar(50)
+  notes        String?
+  last_restock DateTime? @db.Timestamptz(6)
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  products     products  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_inventories_product")
+
+  @@index([deleted_at], map: "idx_inventories_deleted_at")
+}
+
+model products {
+  id              BigInt            @id @default(autoincrement())
+  name            String            @db.VarChar(100)
+  category        String?           @db.VarChar(50)
+  price           Decimal           @db.Decimal
+  cost            Decimal?          @default(0) @db.Decimal
+  unit            String?           @default("桶") @db.VarChar(20)
+  stock           BigInt?           @default(0)
+  min_stock       BigInt?           @default(10)
+  description     String?
+  image_url       String?           @db.VarChar(500)
+  active          Boolean?          @default(true)
+  created_at      DateTime?         @db.Timestamptz(6)
+  updated_at      DateTime?         @db.Timestamptz(6)
+  deleted_at      DateTime?         @db.Timestamptz(6)
+  gas_order_items gas_order_items[]
+  inventories     inventories?
+
+  @@index([deleted_at], map: "idx_products_deleted_at")
+}
+
+model users {
+  id                                      BigInt       @id @default(autoincrement())
+  username                                String       @unique(map: "idx_users_username") @db.VarChar(50)
+  password                                String       @db.VarChar(255)
+  name                                    String       @db.VarChar(100)
+  role                                    String       @default("staff") @db.VarChar(20)
+  phone                                   String?      @db.VarChar(20)
+  email                                   String?      @db.VarChar(100)
+  active                                  Boolean?     @default(true)
+  created_at                              DateTime?    @db.Timestamptz(6)
+  updated_at                              DateTime?    @db.Timestamptz(6)
+  deleted_at                              DateTime?    @db.Timestamptz(6)
+  gas_orders_gas_orders_created_byTousers gas_orders[] @relation("gas_orders_created_byTousers")
+  gas_orders_gas_orders_driver_idTousers  gas_orders[] @relation("gas_orders_driver_idTousers")
+
+  @@index([deleted_at], map: "idx_users_deleted_at")
+}

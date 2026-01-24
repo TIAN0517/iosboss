@@ -1,0 +1,41 @@
+# Vercel 環境變量配置
+
+## DATABASE_URL 連接字符串
+
+使用以下連接字符串在 Vercel 中配置 DATABASE_URL：
+
+### 標準連接（直接連接）
+```
+postgresql://postgres:Ss0939272771@db.mdmltksbpdyndoisnqhy.supabase.co:5432/postgres
+```
+
+### 連接池連接（推薦，性能更好）
+```
+postgresql://postgres.mdmltksbpdyndoisnqhy:Ss0939272771@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+```
+
+## 配置步驟
+
+1. 登入 Vercel Dashboard
+2. 選擇您的專案
+3. 進入 **Settings** → **Environment Variables**
+4. 添加或更新環境變量：
+   - **Key**: `DATABASE_URL`
+   - **Value**: 使用上面的連接池連接字符串（推薦）
+   - **Environment**: 選擇所有環境（Production, Preview, Development）
+5. 點擊 **Save**
+6. 重新部署應用程序
+
+## 注意事項
+
+⚠️ **安全提示**：
+- 此密碼已包含在連接字符串中，請妥善保管
+- 不要將此文件提交到 Git 倉庫
+- 建議使用連接池連接（第二個選項），性能更好且更穩定
+
+## 驗證連接
+
+配置完成後，可以通過以下方式驗證：
+1. 重新部署應用程序
+2. 嘗試登入（使用 admin、bossjy、kai801129 或 tian1111）
+3. 檢查 Vercel 構建日誌，確認沒有數據庫連接錯誤

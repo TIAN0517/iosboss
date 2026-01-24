@@ -1,0 +1,20 @@
+{
+  "name": "sync-websocket-service",
+  "version": "1.0.0",
+  "description": "即時同步WebSocket服務 - 九九瓦斯行管理系統",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node index.ts",
+    "build": "tsc index.ts --outdir ./dist",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3",
+    "@prisma/client": "^6.19.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5",
+    "ts-node": "^10.9.2"
+  }
+}

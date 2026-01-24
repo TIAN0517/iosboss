@@ -1,0 +1,79 @@
+{
+  "timestamp": "2026-01-21T00:43:09.322Z",
+  "summary": {
+    "totalAPIs": 178,
+    "duplicateAPIs": 96,
+    "activeAPIs": 82,
+    "totalComponents": 73,
+    "systemFiles": 83699,
+    "systemSize": "2.56 GB"
+  },
+  "details": {
+    "system": {
+      "structure": {
+        "nextjs": true,
+        "python": true,
+        "node_modules": true,
+        "dist": true,
+        "logs": true,
+        "env": true
+      },
+      "totalFiles": 83699,
+      "size": 2753118417
+    },
+    "apis": {
+      "active": 82,
+      "backup": 79,
+      "old": 17,
+      "total": 178,
+      "duplicates": 96
+    },
+    "components": {
+      "src": 72,
+      "app": 1,
+      "total": 73
+    },
+    "issues": [],
+    "recommendations": [
+      {
+        "priority": "HIGH",
+        "category": "Code Duplication",
+        "issue": "Found 96 duplicate API routes",
+        "recommendation": "Remove duplicate API directories (api_backup, api_old)",
+        "impact": "High - Reduces code maintenance burden"
+      },
+      {
+        "priority": "LOW",
+        "category": "Performance",
+        "issue": "node_modules directory is 1253.8MB",
+        "recommendation": "Consider using .gitignore for node_modules",
+        "impact": "Low - Improves repository size"
+      }
+    ]
+  },
+  "tools": {
+    "available": [
+      "unified-launcher.js - Smart service launcher",
+      "start-unified.bat - Unified startup script",
+      "scan-api-simple.js - API inventory tool",
+      "API_ROUTES_INVENTORY.md - API documentation"
+    ],
+    "nextjs": {
+      "status": "Available",
+      "commands": [
+        "npm run dev - Start development server",
+        "npm run build - Build for production",
+        "npm start - Start production server"
+      ]
+    },
+    "python": {
+      "status": "Available",
+      "services": [
+        "Python AI (port 8888)",
+        "Boss LINE Bot (port 5001)",
+        "Knowledge API (port 5002)",
+        "Voice Service (port 8889)"
+      ]
+    }
+  }
+}

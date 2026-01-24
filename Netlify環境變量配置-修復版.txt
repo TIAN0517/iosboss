@@ -1,0 +1,146 @@
+# ========================================
+# Netlify 環境變量配置（修復版）
+# 複製這些環境變量到 Netlify Dashboard
+# ========================================
+
+# ========================================
+# 應用基本設置
+# ========================================
+NODE_ENV=production
+NEXT_TELEMETRY_DISABLED=1
+JWT_SECRET=9hg8PlHMFswnN7FZyfxHOagwqyJ87lZVXQFDKRBc+GY=
+
+# ========================================
+# 數據庫配置（改為雲端）
+# ========================================
+DATABASE_URL=postgresql://postgres:Ss520520@db.mdmltksbpdyndoisnqhy.supabase.co:5432/postgres
+DIRECT_URL=postgresql://postgres.mdmltksbpdyndoisnqhy:Ss520520@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
+
+# ========================================
+# Supabase 配置
+# ========================================
+NEXT_PUBLIC_SUPABASE_URL=https://mdmltksbpdyndoisnqhy.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_3p1ly5-SPsrI5178yr7Qjg_i7OBKEJQ
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=sb_secret_PloQCSW91a11td9_ejkaEQ_2faT0bs2
+SUPABASE_JWT_SECRET=JFOZVsXpgi6kShGdzmrrNP80yNKUuA9YTCIjsK+gY5ZZcYItaQt9asmRJxXbjhyuK+CMZn7bAEnaJYBT92orEQ==
+SUPABASE_ACCESS_TOKEN=sbp_a083055ee9dd7750eb7b2c34026eb56b0bed294c
+
+# ========================================
+# LINE Bot 配置
+# ========================================
+LINE_CHANNEL_ACCESS_TOKEN=tdlFpMlO3GPpiFGq5yuIxcH2Y79OwwjRSE2YydguP0yb7gMbRX1XqgET0WvEM+7NvZBQ4MfJfz9xp8f8pJ9Uzsgcma55Rgc9hwNOap/NrfedXYazKLPLWDww1wPOwjMHA+mFnPOwWJmvVziHuoFaVwdB04t89/1O/w1cDnyilFU=
+LINE_CHANNEL_SECRET=f67b75f1f76dad8859df317743d8787c
+LINE_USER_ID=U2f7655580a254b416cdb62ae3fd6bb7a
+LINE_WEBHOOK_URL=https://bossai.tiankai.it.com/api/webhook/line
+LINE_SKIP_SIGNATURE_VERIFY=true
+
+# LINE 群組 ID
+LINE_ADMIN_GROUP_ID=C986ae8b3208735b53872a6d609a7bbe7
+LINE_DRIVER_GROUP_ID=C4bfd4b93d29f090fa2b18885d8ad7d12
+LINE_SALES_GROUP_ID=C4bfd4b93d29f090fa2b18885d8ad7d12
+EMPLOYEE_GROUP_ID=C4bfd4b93d29f090fa2b18885d8ad7d12
+ZHANG_GROUP_ID=C986ae8b3208735b53872a6d609a7bbe7
+DI_HUANG_GROUP_ID=Ced1de6871cd282fffd7a63a1c4381276
+
+# ========================================
+# AI 配置（反向代理到本地）
+# ========================================
+AI_BASE_URL=https://ai.tiankai.it.com
+OLLAMA_BASE_URL=https://ai.tiankai.it.com
+NEXT_AI_PROVIDER=ollama
+
+# ========================================
+# GLM API 配置（可選）
+# ========================================
+GLM_API_KEY=26cd829bd2b44c6f8ae8cc8649195f3f.WREgQn9fENmySAFM
+GLM_MODEL=glm-4-flash
+GLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
+GLM_TIMEOUT=10
+GLM_MAX_RETRIES=3
+GLM_ENABLE_STREAMING=true
+GLM_THINKING_ENABLED=true
+GLM_ENABLE_KEY_ROTATION=true
+
+# ========================================
+# 語音服務配置（可選）
+# ========================================
+VOICE_PROVIDER=eightwai
+VOICE_WEBHOOK_SECRET=jy-gas-voice-webhook-2025-secret
+VOICE_AUTO_ANSWER_ENABLED=true
+VOICE_NO_ANSWER_TIMEOUT=180
+
+
+
+# GLM STT/TTS 配置
+STT_SERVICE=glm
+GLM_STT_MODEL=glm-4v
+GLM_STT_API_KEY=26cd829bd2b44c6f8ae8cc8649195f3f.WREgQn9fENmySAFM
+GLM_STT_BASE_URL=https://open.bigmodel.cn/api/paas/v4/audio/transcriptions
+
+
+
+TTS_SERVICE=glm
+GLM_TTS_MODEL=tts-1
+GLM_TTS_API_KEY=26cd829bd2b44c6f8ae8cc8649195f3f.WREgQn9fENmySAFM
+GLM_TTS_BASE_URL=https://open.bigmodel.cn/api/paas/v4/audio/speech
+TTS_VOICE=tongtong
+TTS_SPEED=1.0
+TTS_PITCH=1.0
+
+
+
+# ========================================
+# 系統配置
+# ========================================
+ALLOWED_ORIGINS=https://bossai.tiankai.it.com,https://jytian.it.com
+SAME_SITE=none
+LOG_LEVEL=info
+
+
+
+# ========================================
+# 車隊配送管理配置
+# ========================================
+DRIVER_LOCATION_TRACKING_ENABLED=true
+DRIVER_LOCATION_UPDATE_INTERVAL=30
+DRIVER_LOCATION_RETENTION_DAYS=90
+
+
+DISPATCH_AUTO_ASSIGN_ENABLED=false
+DISPATCH_AUTO_ASSIGN_RADIUS=10
+
+
+DRIVER_APP_NOTIFICATION_ENABLED=true
+DRIVER_APP_SMS_NOTIFICATION_ENABLED=true
+
+
+
+# ========================================
+# 外部系統整合配置
+# ========================================
+ACCOUNTING_SYNC_ENABLED=false
+ACCOUNTING_SYNC_API_KEY=jy99_accounting_sync_2025_secret_key_change_me
+SYNC_ENABLED=false
+
+# 庫存警告配置
+MIN_STOCK_ALERT_LEVEL=10
+
+# Webhook 通用配置
+WEBHOOK_TIMEOUT=30000
+WEBHOOK_RETRY_COUNT=3
+
+
+
+# ========================================
+# 車訊快遞整合配置
+# ========================================
+VEHICLE_EXPRESS_ENABLED=true
+VEHICLE_EXPRESS_SMS_ENABLED=true
+VEHICLE_EXPRESS_SENDER_ID=JY99GAS
+
+
+
+VEHICLE_EXPRESS_SMS_ARRIVED=九九瓦斯行：您的訂單 {orderNo} 已抵達，司機正在送貨中
+VEHICLE_EXPRESS_SMS_COMPLETED=九九瓦斯行：您的訂單 {orderNo} 已配送完成。感謝您的訂購！
+VEHICLE_EXPRESS_TRACKING_ENABLED=true
+VEHICLE_EXPRESS_TRACKING_INTERVAL=300

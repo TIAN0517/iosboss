@@ -1,0 +1,35 @@
+# ========================================
+# 公司端 Cloudflare Tunnel 配置
+# 九九瓦斯行 - 公司內網連接
+# ========================================
+# 使用方式：
+# 1. 在公司內網電腦上安裝 cloudflared
+# 2. 創建新的 Tunnel（不要和管理系統共用）
+# 3. 使用此配置文件
+# ========================================
+
+tunnel: ${CF_TUNNEL_ID}
+credentials-file: ${CF_CREDENTIALS_FILE}
+
+# 定義隧道配置
+ingress:
+  # MSSQL 資料庫（通過隧道暴露）
+  - hostname: mssql.your-domain.com  # 需要設置的域名
+    service: tcp://MSSQL內網IP:1433
+    # 或使用服務名稱
+    # service: tcp://localhost:1433
+
+  # API 服務（如果需要）
+  # - hostname: api.your-domain.com
+  #   service: http://localhost:3000
+
+  # 默認規則
+  - service: http_status:404
+
+# TCP only for MSSQL
+protocol: tcp
+
+# 指標和日誌
+metrics: 0.0.0.0:2000
+loglevel: info
+no-autoupdate: false

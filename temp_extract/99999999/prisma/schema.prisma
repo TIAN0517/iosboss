@@ -1,0 +1,218 @@
+// This is your Prisma schema file,
+// learn more at https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// === 用戶管理 ===
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]
+}
+
+// === 商品分類 ===
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products  Product[]
+}
+
+// === 商品 ===
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  imageUrl    String?
+  stock       Int      @default(0)
+  categoryId  String
+  featured    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  views       Int      @default(0)      // 瀏覽次數
+  sales       Int      @default(0)      // 銷售數量
+  rating      Float    @default(0)      // 評分
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  reviews     ProductReview[]
+  specs       ProductSpec[]
+  wishlists   Wishlist[]
+}
+
+// === 購物車項目 ===
+model CartItem {
+  id        String   @id @default(cuid())
+  productId String
+  quantity  Int      @default(1)
+  sessionId String   @unique  // 游客購物車使用session ID
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([productId])
+}
+
+// === 訂單 ===
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  userId        String?  // 用戶ID（如果已登錄）
+  customerName String
+  phone         String
+  address       String
+  totalAmount   Float
+  status        String   @default("pending") // pending, confirmed, shipped, delivered, cancelled
+  paymentMethod String?  // cash, transfer, card, etc.
+  paymentStatus String   @default("unpaid") // unpaid, paid, refunded
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user         User?        @relation(fields: [userId], references: [id])
+  items        OrderItem[]
+  coupons      OrderCoupon[]
+
+  @@index([userId])
+  @@index([orderNumber])
+  @@index([status])
+}
+
+// === 訂單項目 ===
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float  // 下單時的價格
+  createdAt DateTime @default(now())
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// === 產品評論 ===
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String?
+  userName  String
+  rating    Int      // 1-5 星
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+}
+
+// === 優惠券 ===
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  discountType String   // percentage, fixed
+  discountValue Float
+  minAmount   Float?   // 最低消費金額
+  maxAmount   Float?   // 最高優惠金額
+  usageLimit  Int?     // 使用次數限制
+  usedCount   Int      @default(0)
+  validFrom   DateTime @default(now())
+  validTo     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      OrderCoupon[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// === 訂單優惠 ===
+model OrderCoupon {
+  id      String @id @default(cuid())
+  orderId String
+  couponId String
+  discount Float  // 優惠金額
+  createdAt DateTime @default(now())
+
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([couponId])
+}
+
+// === 收藏夾 ===
+model Wishlist {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String?
+  sessionId String?
+  createdAt DateTime @default(now())
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+  @@index([sessionId])
+}
+
+// === 商品規格 ===
+model ProductSpec {
+  id        String @id @default(cuid())
+  productId String
+  name      String  // 規格名稱，如：尺寸、功率、材質
+  value     String  // 規格值，如：30x40cm、3KW、不鏽鋼
+  sortOrder Int    @default(0)
+  createdAt DateTime @default(now())
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// === 配送記錄 ===
+model ShippingRecord {
+  id           String   @id @default(cuid())
+  orderId      String   @unique
+  trackingNo   String?
+  carrier      String?  // 物流公司
+  shippedAt    DateTime?
+  deliveredAt  DateTime?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([orderId])
+}

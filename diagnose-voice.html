@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>語音功能診斷</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; margin-bottom: 20px; }
+    h2 { color: #667eea; margin-bottom: 15px; font-size: 20px; }
+    .check-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .status-icon {
+      font-size: 24px;
+      margin-right: 15px;
+      min-width: 30px;
+    }
+    .check-content {
+      flex: 1;
+    }
+    .check-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .check-detail {
+      color: #666;
+      font-size: 14px;
+    }
+    .success { color: #10b981; }
+    .error { color: #ef4444; }
+    .warning { color: #f59e0b; }
+    .button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    .button:hover { background: #5a67d8; }
+    .button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .log {
+      background: #1e1e1e;
+      color: #10b981;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>🔍 語音功能診斷工具</h1>
+      <p>檢測您的瀏覽器和系統是否支援語音功能</p>
+    </div>
+
+    <div class="card">
+      <h2>📋 系統檢測結果</h2>
+      <div id="results"></div>
+    </div>
+
+    <div class="card">
+      <h2>🧪 測試按鈕</h2>
+      <button class="button" onclick="testSpeechRecognition()">
+        🎤 測試語音識別
+      </button>
+      <button class="button" onclick="testSpeechSynthesis()">
+        🔊 測試語音播放
+      </button>
+      <button class="button" onclick="testAPI()">
+        🌐 測試 AI API
+      </button>
+    </div>
+
+    <div class="card">
+      <h2>📝 運行日誌</h2>
+      <div id="log" class="log">等待測試...</div>
+    </div>
+
+    <div class="card">
+      <h2>🔧 解決方案</h2>
+      <div id="solutions" style="line-height: 1.8;"></div>
+    </div>
+  </div>
+
+  <script>
+    const logDiv = document.getElementById('log');
+    const resultsDiv = document.getElementById('results');
+    const solutionsDiv = document.getElementById('solutions');
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString();
+      logDiv.textContent = `[${time}] ${message}\n` + logDiv.textContent;
+      console.log(message);
+    }
+
+    function addCheck(status, title, detail) {
+      const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+      };
+      const colors = {
+        success: 'success',
+        error: 'error',
+        warning: 'warning',
+        info: ''
+      };
+
+      const checkDiv = document.createElement('div');
+      checkDiv.className = 'check-item';
+      checkDiv.innerHTML = `
+        <div class="status-icon ${colors[status]}">${icons[status]}</div>
+        <div class="check-content">
+          <div class="check-title">${title}</div>
+          <div class="check-detail">${detail}</div>
+        </div>
+      `;
+      resultsDiv.appendChild(checkDiv);
+    }
+
+    let checks = {
+      speechRecognition: false,
+      speechSynthesis: false,
+      api: false,
+      microphone: false
+    };
+
+    // 頁面加載時自動檢測
+    window.onload = async () => {
+      log('=== 開始診斷 ===');
+
+      // 檢查 1: 語音合成
+      log('檢查語音合成支援...');
+      if ('speechSynthesis' in window) {
+        const voices = speechSynthesis.getVoices();
+        log(`找到 ${voices.length} 個語音`);
+        const zhVoice = voices.find(v => v.lang.includes('zh'));
+        if (zhVoice) {
+          addCheck('success', '語音播放', `支援 ${voices.length} 個語音，包含中文`);
+          checks.speechSynthesis = true;
+        } else {
+          addCheck('warning', '語音播放', `支援語音合成但沒有中文語音`);
+          checks.speechSynthesis = true;
+        }
+      } else {
+        addCheck('error', '語音播放', '瀏覽器不支援語音合成');
+      }
+
+      // 檢查 2: 語音識別
+      log('檢查語音識別支援...');
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        addCheck('success', '語音識別', '瀏覽器支援 Web Speech API');
+        checks.speechRecognition = true;
+      } else {
+        addCheck('error', '語音識別', '瀏覽器不支援語音識別，請使用 Chrome 或 Edge');
+      }
+
+      // 檢查 3: 麥克風權限
+      log('檢查麥克風權限...');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        addCheck('success', '麥克風', '麥克風權限已授予');
+        checks.microphone = true;
+        log('麥克風權限正常');
+      } catch (error) {
+        addCheck('error', '麥克風', `無法訪問麥克風: ${error.message}`);
+        log(`麥克風錯誤: ${error.message}`);
+      }
+
+      // 檢查 4: API 連接
+      log('檢查 API 連接...');
+      try {
+        const response = await fetch('http://localhost:9999/api/health');
+        if (response.ok) {
+          addCheck('success', '系統 API', 'API 服務正常運行');
+          checks.api = true;
+          log('API 連接成功');
+        } else {
+          addCheck('warning', '系統 API', `API 回應 ${response.status}`);
+          log(`API 錯誤: ${response.status}`);
+        }
+      } catch (error) {
+        addCheck('error', '系統 API', `無法連接到 API: ${error.message}`);
+        log(`API 錯誤: ${error.message}`);
+      }
+
+      // 顯示解決方案
+      showSolutions();
+    };
+
+    function testSpeechRecognition() {
+      log('=== 測試語音識別 ===');
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        alert('❌ 您的瀏覽器不支援語音識別\n\n請使用 Chrome 或 Edge 瀏覽器');
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'zh-TW';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        log('語音識別已啟動，請說話...');
+        alert('🎤 請說話（例如：你好）');
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        log(`識別結果: "${transcript}"`);
+        alert(`✅ 識別到: "${transcript}"`);
+      };
+
+      recognition.onerror = (event) => {
+        log(`語音識別錯誤: ${event.error}`);
+        alert(`❌ 語音識別失敗: ${event.error}`);
+      };
+
+      recognition.onend = () => {
+        log('語音識別已結束');
+      };
+
+      recognition.start();
+    }
+
+    function testSpeechSynthesis() {
+      log('=== 測試語音播放 ===');
+
+      if (!('speechSynthesis' in window)) {
+        alert('❌ 您的瀏覽器不支援語音合成');
+        return;
+      }
+
+      log('準備播放測試語音...');
+
+      const utterance = new SpeechSynthesisUtterance('你好，這是一個測試。');
+      utterance.lang = 'zh-TW';
+      utterance.rate = 1.0;
+      utterance.volume = 1.0;
+
+      utterance.onstart = () => {
+        log('▶️ 正在播放語音...');
+        alert('🔊 正在播放語音，請聽...');
+      };
+
+      utterance.onend = () => {
+        log('✅ 語音播放完成');
+        alert('✅ 測試完成！您聽到聲音了嗎？');
+      };
+
+      utterance.onerror = (event) => {
+        log(`❌ 語音播放錯誤: ${event.error}`);
+        alert(`❌ 播放失敗: ${event.error}\n\n可能原因：\n1. 音量太小\n2. 瀏覽器不支援\n3. 系統音效設定問題`);
+      };
+
+      speechSynthesis.speak(utterance);
+    }
+
+    async function testAPI() {
+      log('=== 測試 AI API ===');
+      log('發送請求到 API...');
+
+      try {
+        const response = await fetch('http://localhost:9999/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: '你好',
+            conversationHistory: [],
+            stream: false
+          })
+        });
+
+        log(`API 回應狀態: ${response.status}`);
+
+        if (response.ok) {
+          const data = await response.json();
+          log(`API 回應: ${JSON.stringify(data)}`);
+          alert(`✅ API 測試成功！\n\nAI 回應: ${data.content || '無內容'}`);
+
+          // 播放回應
+          if (data.content) {
+            log('準備播放 AI 回應...');
+            if ('speechSynthesis' in window) {
+              const utterance = new SpeechSynthesisUtterance(data.content);
+              utterance.lang = 'zh-TW';
+              speechSynthesis.speak(utterance);
+            }
+          }
+        } else {
+          log(`API 錯誤: ${response.status}`);
+          alert(`❌ API 請求失敗\n狀態碼: ${response.status}`);
+        }
+      } catch (error) {
+        log(`API 錯誤: ${error.message}`);
+        alert(`❌ API 連接失敗: ${error.message}`);
+      }
+    }
+
+    function showSolutions() {
+      let solutions = [];
+
+      if (!checks.speechRecognition) {
+        solutions.push('❌ 語音識別不支援<br>請使用 <strong>Google Chrome</strong> 或 <strong>Microsoft Edge</strong> 瀏覽器');
+      }
+
+      if (!checks.speechSynthesis) {
+        solutions.push('❌ 語音播放不支援<br>請使用 Chrome 或 Edge 瀏覽器');
+      }
+
+      if (!checks.microphone) {
+        solutions.push('❌ 麥克風權限未授予<br>請允許瀏覽器使用麥克風');
+      }
+
+      if (!checks.api) {
+        solutions.push('❌ 系統 API 未運行<br>請確保 http://localhost:9999 正在運行');
+      }
+
+      if (checks.speechRecognition && checks.speechSynthesis && checks.microphone && checks.api) {
+        solutions.push('✅ 所有功能正常！<br>您可以正常使用語音助手');
+      }
+
+      solutionsDiv.innerHTML = solutions.join('<br><br>');
+    }
+  </script>
+</body>
+</html>

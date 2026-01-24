@@ -107,3 +107,6 @@ caddy.exe
 caddy.zip
 gas-management.zip
 cloudflared.exe
+
+# Local Netlify folder
+.netlify

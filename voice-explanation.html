@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>語音助手說明</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 700px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 { color: #333; margin-bottom: 20px; }
+    .content {
+      line-height: 1.8;
+      color: #555;
+    }
+    .highlight {
+      background: #f0f0ff;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      border-left: 4px solid #667eea;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .warning {
+      background: #fff3cd;
+      color: #856404;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .button {
+      display: block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 30px;
+      border-radius: 50px;
+      text-decoration: none;
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px;
+      margin: 10px 0;
+      transition: all 0.3s;
+    }
+    .button:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎤 語音助手功能說明</h1>
+
+    <div class="success">
+      <strong>✅ 已關閉自動語音播放</strong><br>
+      AI 回應只會顯示文字，不會自動朗讀
+    </div>
+
+    <div class="highlight">
+      <strong>📝 關於豆包的語音：</strong><br><br>
+      豆包使用的是<strong>專業雲端 TTS 服務</strong>（如字節跳扣的雲端語音），<br>
+      這需要付費並申請 API Key。<br><br>
+      目前的語音助手使用<strong>瀏覽器內置功能</strong>：<br>
+      ✅ 語音識別（免費，效果很好）<br>
+      ❌ 語音播放（免費，但像機械朗讀）
+    </div>
+
+    <div class="warning">
+      <strong>💡 當前功能：</strong><br><br>
+      1. <strong>語音輸入</strong> - 像豆包一樣，說話即識別<br>
+      2. <strong>AI 對話</strong> - 智能回應您的問題<br>
+      3. <strong>對話歷史</strong> - 顯示完整對話記錄<br>
+      4. <strong>波紋動畫</strong> - 美觀的視覺效果<br>
+      5. <strong>全屏體驗</strong> - 沉浸式對話界面
+    </div>
+
+    <div class="content">
+      <strong>🎯 現在語音助手提供的功能：</strong><br><br>
+      1. 點擊右下角紫粉色按鈕進入<br>
+      2. 點擊中央大按鈕開始說話<br>
+      3. 看到您的話語顯示在屏幕上<br>
+      4. AI 回應也顯示在屏幕上<br>
+      5. 可以查看完整對話歷史<br><br>
+      <strong>就像豆包的語音識別功能，但沒有語音播放。</strong>
+    </div>
+
+    <a href="http://localhost:9999" class="button" target="_blank">
+      🚀 現在體驗語音助手
+    </a>
+
+    <div style="margin-top: 30px; font-size: 14px; color: #888;">
+      <strong>💡 未來可以升級：</strong><br>
+      如果需要像豆包一樣自然的語音播放，可以申請<br>
+      Google Cloud TTS、Azure TTS 或其他專業 TTS 服務<br>
+      （這些服務需要付費，但效果非常自然）
+    </div>
+  </div>
+</body>
+</html>

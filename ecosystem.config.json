@@ -1,0 +1,119 @@
+{
+  "apps": [
+    {
+      "name": "nextjs",
+      "script": "npm",
+      "args": "run dev",
+      "cwd": "C:\\Users\\tian7\\OneDrive\\Desktop\\媽媽ios",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false,
+      "max_memory_restart": "1G",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "9999"
+      },
+      "error_file": "logs/pm2/nextjs-error.log",
+      "out_file": "logs/pm2/nextjs-out.log",
+      "merge_logs": true,
+      "time": true,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "restart_delay": 3000,
+      "max_restarts": 10,
+      "min_uptime": "10s",
+      "kill_timeout": 5000
+    },
+    {
+      "name": "python-ai",
+      "script": "python",
+      "args": "-m uvicorn app.main:app --host 0.0.0.0 --port 8888",
+      "cwd": "C:\\Users\\tian7\\OneDrive\\Desktop\\媽媽ios\\line_bot_ai",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false,
+      "max_memory_restart": "500M",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "error_file": "logs/pm2/python-ai-error.log",
+      "out_file": "logs/pm2/python-ai-out.log",
+      "merge_logs": true,
+      "time": true,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "restart_delay": 3000,
+      "max_restarts": 10,
+      "min_uptime": "10s",
+      "kill_timeout": 5000
+    },
+    {
+      "name": "boss-line-bot",
+      "script": "python",
+      "args": "boss_line_bot.py",
+      "cwd": "C:\\Users\\tian7\\OneDrive\\Desktop\\媽媽ios\\line_bot_ai",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false,
+      "max_memory_restart": "300M",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "error_file": "logs/pm2/boss-line-bot-error.log",
+      "out_file": "logs/pm2/boss-line-bot-out.log",
+      "merge_logs": true,
+      "time": true,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "restart_delay": 3000,
+      "max_restarts": 10,
+      "min_uptime": "10s",
+      "kill_timeout": 5000
+    },
+    {
+      "name": "knowledge-api",
+      "script": "python",
+      "args": "app\\knowledge_api.py",
+      "cwd": "C:\\Users\\tian7\\OneDrive\\Desktop\\媽媽ios\\line_bot_ai",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false,
+      "max_memory_restart": "200M",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "error_file": "logs/pm2/knowledge-api-error.log",
+      "out_file": "logs/pm2/knowledge-api-out.log",
+      "merge_logs": true,
+      "time": true,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "restart_delay": 3000,
+      "max_restarts": 10,
+      "min_uptime": "10s",
+      "kill_timeout": 5000
+    },
+    {
+      "name": "voice-service",
+      "script": "python",
+      "args": "ai_voice_chat.py",
+      "cwd": "C:\\Users\\tian7\\OneDrive\\Desktop\\媽媽ios\\line_bot_ai",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false,
+      "max_memory_restart": "300M",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "error_file": "logs/pm2/voice-service-error.log",
+      "out_file": "logs/pm2/voice-service-out.log",
+      "merge_logs": true,
+      "time": true,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "restart_delay": 3000,
+      "max_restarts": 10,
+      "min_uptime": "10s",
+      "kill_timeout": 5000
+    }
+  ]
+}

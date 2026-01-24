@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>按哪個按鈕？</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #333;
+      font-size: 32px;
+      margin-bottom: 30px;
+    }
+    .answer {
+      font-size: 24px;
+      color: #f5576c;
+      font-weight: bold;
+      margin: 30px 0;
+      padding: 20px;
+      background: #fff0f3;
+      border-radius: 12px;
+    }
+    .button-demo {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 30px auto;
+      box-shadow: 0 8px 30px rgba(245, 87, 108, 0.5);
+      animation: pulse 1.5s infinite;
+      cursor: pointer;
+      position: relative;
+    }
+    .button-demo svg {
+      width: 40px;
+      height: 40px;
+      fill: white;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 8px 30px rgba(245, 87, 108, 0.5); }
+      50% { transform: scale(1.15); box-shadow: 0 8px 40px rgba(245, 87, 108, 0.8); }
+    }
+    .arrow {
+      position: absolute;
+      right: -60px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 50px;
+      animation: bounce 1s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(-50%) translateX(0); }
+      50% { transform: translateY(-50%) translateX(10px); }
+    }
+    .position {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 30px;
+    }
+    .position h3 {
+      color: #667eea;
+      margin-top: 0;
+    }
+    .step {
+      font-size: 18px;
+      margin: 10px 0;
+      color: #555;
+    }
+    .open-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 40px;
+      border-radius: 50px;
+      text-decoration: none;
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 20px;
+      transition: transform 0.2s;
+    }
+    .open-button:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>按哪個按鈕？</h1>
+
+    <div class="answer">
+      ✅ 按右下角的「紫粉色圓形按鈕」！
+    </div>
+
+    <div class="button-demo">
+      <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      <div class="arrow">👈</div>
+    </div>
+
+    <div class="position">
+      <h3>📍 按鈕位置</h3>
+      <div class="step">1️⃣ 打開 http://localhost:9999</div>
+      <div class="step">2️⃣ 看頁面的<strong>右下角</strong></div>
+      <div class="step">3️⃣ 找到這個<strong>紫粉色圓形按鈕</strong></div>
+      <div class="step">4️⃣ <strong>點擊它</strong>！</div>
+    </div>
+
+    <a href="http://localhost:9999" class="open-button" target="_blank">
+      🚀 打開系統
+    </a>
+
+    <p style="margin-top: 30px; color: #666; font-size: 16px;">
+      💡 按鈕會<strong>閃爍</strong>，很明顯的！<br>
+      有麥克風圖標 🎤
+    </p>
+  </div>
+</body>
+</html>

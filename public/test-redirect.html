@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BossAI 測試頁面</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            color: #333;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #f97316;
+            border-bottom: 3px solid #f97316;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f97316;
+            color: white;
+        }
+        .extension-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .extension-item {
+            padding: 5px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .button {
+            background: #f97316;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        .button:hover {
+            background: #e65100;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .redirect-test {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 BossAI 診斷工具</h1>
+
+        <div class="status success">
+            ✅ 如果您看到這個頁面，表示 bossai.tiankai.it.com 正常工作！
+        </div>
+
+        <div class="info">
+            <strong>📋 當前頁面資訊：</strong>
+            <ul id="pageInfo"></ul>
+        </div>
+
+        <div class="redirect-test">
+            <strong>🔗 重定向測試：</strong>
+            <button class="button" onclick="testRedirect()">測試根路徑重定向</button>
+            <div id="redirectResult"></div>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ 檢測到的問題：</strong>
+            <ul id="issues"></ul>
+        </div>
+
+        <h2>🔌 瀏覽器擴展列表</h2>
+        <p style="color: #666; font-size: 14px;">請檢查以下擴展是否可能造成重定向：</p>
+        <div class="extension-list" id="extensionList">
+            正在檢測...
+        </div>
+
+        <h2>📊 詳細資訊</h2>
+        <table>
+            <tr>
+                <th>項目</th>
+                <th>值</th>
+            </tr>
+            <tr>
+                <td>當前 URL</td>
+                <td id="currentUrl"></td>
+            </tr>
+            <tr>
+                <td>Referrer</td>
+                <td id="referrer"></td>
+            </tr>
+            <tr>
+                <td>User Agent</td>
+                <td id="userAgent"></td>
+            </tr>
+            <tr>
+                <td>Cookie 數量</td>
+                <td id="cookieCount"></td>
+            </tr>
+            <tr>
+                <td>LocalStorage 數量</td>
+                <td id="localStorageCount"></td>
+            </tr>
+        </table>
+
+        <div class="info">
+            <strong>💡 解決方案：</strong>
+            <ol>
+                <li><strong>清除瀏覽器緩存：</strong>按 Ctrl+Shift+Delete，清除「Cookie 和其他網站資料」及「快取的圖片和檔案」</li>
+                <li><strong>停用擴展：</strong>在上方擴展列表中，可疑的擴展請暫時停用</li>
+                <li><strong>卸載 PWA：</strong>如果安裝過「瓦斯行」應用，請先卸載</li>
+                <li><strong>使用無痕模式：</strong>按 Ctrl+Shift+N 打開無痕視窗測試</li>
+                <li><strong>嘗試其他瀏覽器：</strong>用 Firefox 或 Safari 測試是否正常</li>
+            </ol>
+        </div>
+
+        <button class="button" onclick="goToMain()">前往主頁面 /</button>
+        <button class="button" onclick="goToLogin()">前往登入頁 /login</button>
+    </div>
+
+    <script>
+        // 顯示頁面資訊
+        const pageInfo = document.getElementById('pageInfo');
+        pageInfo.innerHTML = `
+            <li>URL: ${window.location.href}</li>
+            <li>Protocol: ${window.location.protocol}</li>
+            <li>Host: ${window.location.host}</li>
+            <li>Pathname: ${window.location.pathname}</li>
+        `;
+
+        // 顯示詳細資訊
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('referrer').textContent = document.referrer || '(無)';
+        document.getElementById('userAgent').textContent = navigator.userAgent.substring(0, 100) + '...';
+        document.getElementById('cookieCount').textContent = document.cookie.split(';').length || 0;
+        document.getElementById('localStorageCount').textContent = Object.keys(localStorage).length;
+
+        // 檢測問題
+        const issues = [];
+        const issuesList = document.getElementById('issues');
+
+        // 檢查是否有可疑擴展
+        if (window.chrome && window.chrome.runtime) {
+            // Chrome/Edge 有擴展系統
+        }
+
+        // 檢查 localStorage
+        if (localStorage.getItem('bossai_redirected')) {
+            issues.push('<li>⚠️ 檢測到重定向標記在 localStorage</li>');
+        }
+
+        if (issues.length === 0) {
+            issuesList.innerHTML = '<li>✅ 未檢測到明顯問題，但頁面可能仍有重定向</li>';
+        } else {
+            issuesList.innerHTML = issues.join('');
+        }
+
+        // 檢測瀏覽器擴展
+        function detectExtensions() {
+            const list = document.getElementById('extensionList');
+            const extensions = [];
+
+            // 常見問題擴展的特徵
+            const suspiciousPatterns = [
+                { name: '廣告攔截器', pattern: /adblock|ad block|ublock/i, danger: 'medium' },
+                { name: 'VPN/代理', pattern: /vpn|proxy|tunnel/i, danger: 'high' },
+                { name: '購物助手', pattern: /shopping|coupon|price/i, danger: 'medium' },
+                { name: '重定向工具', pattern: /redirect|auto|jump/i, danger: 'high' },
+                { name: '下載管理器', pattern: /download|manager/i, danger: 'low' }
+            ];
+
+            // 檢測已安裝的擴展（通過檢測它們注入的元素）
+            const detectedElements = document.querySelectorAll('[class*="extension"], [id*="extension"], [data-extension]');
+            detectedElements.forEach(el => {
+                extensions.push({
+                    name: el.className || el.id || '未知擴展',
+                    danger: 'unknown'
+                });
+            });
+
+            // 檢測 window 對象上的擴展標記
+            if (window.___browserSync___) extensions.push({ name: 'BrowserSync', danger: 'low' });
+            if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__) extensions.push({ name: 'React DevTools', danger: 'low' });
+            if (window.angular) extensions.push({ name: 'Angular DevTools', danger: 'low' });
+
+            if (extensions.length === 0) {
+                list.innerHTML = '<div class="extension-item">ℹ️ 無法檢測具體擴展（瀏覽器安全限制）</div>';
+                list.innerHTML += '<div class="extension-item">💡 請手動檢查：chrome://extensions 或 edge://extensions</div>';
+            } else {
+                extensions.forEach(ext => {
+                    const dangerColor = ext.danger === 'high' ? '#f8d7da' : ext.danger === 'medium' ? '#fff3cd' : '#d4edda';
+                    list.innerHTML += `<div class="extension-item" style="background: ${dangerColor}">
+                        ${ext.danger === 'high' ? '⚠️' : ext.danger === 'medium' ? '⚡' : '✅'} ${ext.name}
+                    </div>`;
+                });
+            }
+        }
+
+        detectExtensions();
+
+        // 測試重定向
+        function testRedirect() {
+            const result = document.getElementById('redirectResult');
+            result.innerHTML = '⏳ 正在測試...';
+
+            // 使用 fetch 測試根路徑
+            fetch('/', { method: 'HEAD', redirect: 'manual' })
+                .then(response => {
+                    const status = response.status;
+                    const headers = {};
+                    response.headers.forEach((value, key) => {
+                        headers[key] = value;
+                    });
+
+                    if (status >= 300 && status < 400) {
+                        result.innerHTML = `
+                            <div class="status error">
+                                ❌ 根路徑返回重定向！
+                                <br>狀態碼: ${status}
+                                <br>Location: ${headers['location'] || '(無)'}
+                            </div>
+                        `;
+                    } else {
+                        result.innerHTML = `
+                            <div class="status success">
+                                ✅ 根路徑正常（狀態碼: ${status}）
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    result.innerHTML = `
+                        <div class="status error">
+                            ❌ 測試失敗：${error.message}
+                        </div>
+                    `;
+                });
+        }
+
+        function goToMain() {
+            window.location.href = '/';
+        }
+
+        function goToLogin() {
+            window.location.href = '/login';
+        }
+
+        // 監聽頁面隱藏事件（檢測是否被重定向）
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('⚠️ 頁面被隱藏，可能發生了重定向');
+            }
+        });
+
+        // 監聽 beforeunload 事件
+        window.addEventListener('beforeunload', (e) => {
+            console.log('⚠️ 頁面即將卸載，可能發生了重定向');
+        });
+
+        console.log('🔍 BossAI 診斷工具已載入');
+        console.log('📌 當前 URL:', window.location.href);
+        console.log('📌 Referrer:', document.referrer);
+    </script>
+</body>
+</html>

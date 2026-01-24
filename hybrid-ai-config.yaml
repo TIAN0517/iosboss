@@ -1,0 +1,110 @@
+# 九九瓦斯行 - 混合 AI 架构配置
+# 架构：本地语音 + 云端 AI
+
+# ========================================
+# 本地语音服务
+# ========================================
+local_voice:
+  enabled: true
+  provider: openvoice
+  
+  # OpenVoice 配置
+  openvoice:
+    url: http://localhost:8822
+    voice_id: "mei"
+    accent: "taiwanese"
+    emotion: "friendly"
+    speed: 1.0
+    pitch: 1.0
+    format: "mp3"
+    sample_rate: 22050
+
+# ========================================
+# 云端 AI 服务
+# ========================================
+cloud_ai:
+  primary: glm
+  fallback:
+    - kimi
+    - groq
+  
+  # GLM 配置（主要）
+  glm:
+    api_key: ${GLM_API_KEY}
+    model: glm-4-flash
+    base_url: https://open.bigmodel.cn/api/paas/v4/
+    temperature: 0.7
+    max_tokens: 4096
+    timeout: 10000
+    max_retries: 3
+
+  # Kimi 配置（备用 1）
+  kimi:
+    api_key: ${KIMI_API_KEY}
+    model: kimi-k2-thinking-turbo
+    base_url: https://api.moonshot.cn/v1
+    temperature: 0.7
+    max_tokens: 4096
+
+  # Groq 配置（备用 2）
+  groq:
+    api_key: ${GROQ_API_KEY}
+    model: llama-3.3-70b-versatile
+    base_url: https://api.groq.com/openai/v1
+    temperature: 0.7
+    max_tokens: 4096
+
+# ========================================
+# 智能体配置
+# ========================================
+agent:
+  name: "九九瓦斯行智能助手"
+  role: "你是一个专业的瓦斯行客服AI助手，负责回答客户关于瓦斯订单、配送、价格、安全等问题。"
+  personality: "友好、专业、台湾腔"
+  language: "zh-TW"
+  
+  # 记忆管理
+  memory:
+    enabled: true
+    max_history: 20
+    ttl: 1800
+
+  # 工具列表
+  tools:
+    - name: query_order
+      description: "查询订单状态和详情"
+      enabled: true
+    
+    - name: query_customer
+      description: "查询客户信息和余额"
+      enabled: true
+    
+    - name: query_price
+      description: "查询瓦斯价格"
+      enabled: true
+    
+    - name: clock_in
+      description: "员工上班打卡"
+      enabled: true
+    
+    - name: clock_out
+      description: "员工下班打卡"
+      enabled: true
+
+# ========================================
+# 系统配置
+# ========================================
+system:
+  timezone: "Asia/Taipei"
+  locale: "zh-TW"
+  
+  # 本地服务端口
+  ports:
+    voice: 8822
+    api: 9999
+    
+  # 云端 API 优先级
+  ai_priority:
+    - glm      # 优先
+    - kimi     # 备用
+    - groq     # 最后

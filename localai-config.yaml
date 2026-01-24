@@ -1,0 +1,43 @@
+# LocalAI 配置 - 九九瓦斯行
+version: "v2.0"
+
+models:
+  - name: llama-3.1
+    backend: llama-cpp
+    parameters:
+      model: llama-3.1-8b-instruct-q8_0.gguf
+      temperature: 0.7
+      top_p: 0.9
+      max_tokens: 4096
+      context_size: 4096
+    roles:
+      user: "User"
+      assistant: "Assistant"
+      system: "System"
+      
+  - name: qwen-2.5
+    backend: llama-cpp
+    parameters:
+      model: qwen2.5-7b-instruct-q5_k_m.gguf
+      temperature: 0.7
+      top_p: 0.9
+      max_tokens: 4096
+
+# 语音配置
+tts:
+  enabled: true
+  provider: openvoice
+  model: zh-cn-female
+  voice_id: "mei"
+  speed: 1.0
+  pitch: 1.0
+  
+# API 配置
+api:
+  listen_address: 0.0.0.0
+  listen_port: 8080
+  cors:
+    allowed_origins:
+      - http://localhost:9999
+      - http://localhost:3000
+      - https://linebot.tiankai.it.com

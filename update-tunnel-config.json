@@ -1,0 +1,17 @@
+{
+  "config": {
+    "ingress": [
+      {
+        "service": "http://127.0.0.1:9999",
+        "hostname": "bossai.tiankai.it.com"
+      },
+      {
+        "service": "http://127.0.0.1:9999",
+        "hostname": "linebot.tiankai.it.com"
+      },
+      {
+        "service": "http_status:404"
+      }
+    ]
+  }
+}

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>簡單語音測試</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #ccc; }
+    .result {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      min-height: 50px;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔊 簡單語音測試</h1>
+
+    <div id="status" class="status info">
+      準備就緒，請點擊下方按鈕測試
+    </div>
+
+    <div>
+      <button onclick="test1()">1️⃣ 測試：直接播放語音</button>
+      <button onclick="test2()">2️⃣ 測試：語音識別</button>
+      <button onclick="test3()">3️⃣ 測試：AI 對話</button>
+    </div>
+
+    <div id="result" class="result">
+      結果會顯示在這裡...
+    </div>
+
+    <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 8px;">
+      <strong>💡 使用說明：</strong><br>
+      1. 先測試「直接播放語音」，確認您的電腦/手機能發聲<br>
+      2. 再測試「語音識別」，確認麥克風正常<br>
+      3. 最後測試「AI 對話」，完整體驗語音助手
+    </div>
+
+    <script>
+      const resultDiv = document.getElementById('result');
+      const statusDiv = document.getElementById('status');
+
+      function showStatus(message, type = 'info') {
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${type}`;
+      }
+
+      function showResult(message) {
+        resultDiv.textContent = message;
+      }
+
+      // 測試 1: 直接播放語音
+      function test1() {
+        showStatus('正在測試語音播放...', 'info');
+        showResult('準備播放...');
+
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance('你好，這是語音測試。請確認您聽到聲音。');
+          utterance.lang = 'zh-TW';
+          utterance.rate = 1.0;
+          utterance.volume = 1.0;
+
+          utterance.onstart = () => {
+            showResult('🔊 正在播放... 請聽！');
+          };
+
+          utterance.onend = () => {
+            showResult('✅ 播放完成！您聽到聲音了嗎？');
+            showStatus('測試完成', 'success');
+          };
+
+          utterance.onerror = (e) => {
+            showResult('❌ 播放失敗: ' + e.error);
+            showStatus('播放失敗', 'error');
+            console.error('Error:', e);
+          };
+
+          speechSynthesis.speak(utterance);
+        } else {
+          showResult('❌ 您的瀏覽器不支援語音播放');
+          showStatus('不支援語音合成', 'error');
+        }
+      }
+
+      // 測試 2: 語音識別
+      function test2() {
+        showStatus('正在測試語音識別...', 'info');
+        showResult('準備識別...');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+          showResult('❌ 您的瀏覽器不支援語音識別。請使用 Chrome 或 Edge。');
+          showStatus('不支援語音識別', 'error');
+          return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'zh-TW';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+          showResult('🎤 請說話（例如：你好）...');
+        };
+
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          showResult('✅ 識別到: "' + transcript + '"');
+          showStatus('識別成功', 'success');
+
+          // 播放識別的內容
+          const utterance = new SpeechSynthesisUtterance('您剛才說：' + transcript);
+          utterance.lang = 'zh-TW';
+          speechSynthesis.speak(utterance);
+        };
+
+        recognition.onerror = (event) => {
+          showResult('❌ 識別失敗: ' + event.error);
+          showStatus('識別失敗', 'error');
+        };
+
+        recognition.onend = () => {
+          if (resultDiv.textContent.includes('識別到')) {
+            showStatus('測試完成', 'success');
+          }
+        };
+
+        recognition.start();
+      }
+
+      // 測試 3: AI 對話
+      async function test3() {
+        showStatus('正在測試 AI 對話...', 'info');
+        showResult('準備連接 AI...');
+
+        try {
+          const response = await fetch('http://localhost:9999/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: '你好',
+              conversationHistory: [],
+              stream: false
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            showResult('🤖 AI 回應: ' + (data.content || '無'));
+
+            // 播放 AI 回應
+            if ('speechSynthesis' in window && data.content) {
+              const utterance = new SpeechSynthesisUtterance(data.content);
+              utterance.lang = 'zh-TW';
+              utterance.volume = 1.0;
+
+              utterance.onstart = () => {
+                showResult('🔊 正在播放 AI 回應...');
+              };
+
+              utterance.onend = () => {
+                showStatus('測試完成！', 'success');
+              };
+
+              speechSynthesis.speak(utterance);
+            } else {
+              showStatus('測試完成（但無語音播放）', 'warning');
+            }
+          } else {
+            showResult('❌ API 錯誤: ' + response.status);
+            showStatus('API 錯誤', 'error');
+          }
+        } catch (error) {
+          showResult('❌ 連接失敗: ' + error.message);
+          showStatus('連接失敗', 'error');
+        }
+      }
+    </script>
+</body>
+</html>

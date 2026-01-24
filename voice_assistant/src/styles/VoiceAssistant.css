@@ -1,0 +1,670 @@
+/* 豆包式語音助手樣式 */
+.voice-assistant {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+/* 頭部樣式 */
+.voice-header {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1rem 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.assistant-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.assistant-avatar {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(45deg, #ff6b6b, #feca57);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.avatar-animation {
+  transition: transform 0.3s ease;
+}
+
+.avatar-animation.speaking {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.assistant-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.assistant-status {
+  margin-left: 0.5rem;
+}
+
+.status-listening {
+  color: #4ade80;
+  font-weight: 500;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+.status-speaking {
+  color: #fbbf24;
+  font-weight: 500;
+  animation: speak 2s ease-in-out infinite;
+}
+
+.status-processing {
+  color: #a78bfa;
+  font-weight: 500;
+  animation: process 1s ease-in-out infinite;
+}
+
+.status-idle {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.5; }
+}
+
+@keyframes speak {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes process {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.session-stats {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stats-messages,
+.stats-duration {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 主要內容區域 */
+.voice-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.conversation-container {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  overflow-y: auto;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* 歡迎訊息 */
+.welcome-message {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.welcome-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.welcome-message h2 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.welcome-message p {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 訊息氣泡 */
+.message {
+  display: flex;
+  margin-bottom: 1rem;
+  animation: messageSlide 0.3s ease-out;
+}
+
+@keyframes messageSlide {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message.user {
+  justify-content: flex-end;
+}
+
+.message.ai {
+  justify-content: flex-start;
+}
+
+.message-content {
+  max-width: 70%;
+  padding: 1rem 1.5rem;
+  border-radius: 20px;
+  position: relative;
+  word-wrap: break-word;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.message.user .message-content {
+  background: linear-gradient(45deg, #4ade80, #22c55e);
+  color: white;
+  border-bottom-right-radius: 5px;
+}
+
+.message.ai .message-content {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1f2937;
+  border-bottom-left-radius: 5px;
+}
+
+.message-text {
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+}
+
+.message-time {
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+.message-emotion {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 10px;
+}
+
+/* 當前輸入顯示 */
+.current-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  margin-bottom: 1rem;
+  animation: inputPulse 2s ease-in-out infinite;
+}
+
+@keyframes inputPulse {
+  0%, 100% { 
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+  }
+  50% { 
+    background: rgba(74, 222, 128, 0.2);
+    box-shadow: 0 0 30px rgba(74, 222, 128, 0.4);
+  }
+}
+
+.input-indicator {
+  font-size: 18px;
+  animation: micBlink 1s ease-in-out infinite;
+}
+
+@keyframes micBlink {
+  0%, 50% { transform: scale(1); }
+  51%, 100% { transform: scale(1.1); }
+}
+
+.input-text {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+}
+
+/* 錯誤訊息 */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  animation: errorSlide 0.3s ease-out;
+}
+
+@keyframes errorSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-icon {
+  font-size: 16px;
+}
+
+.error-text {
+  flex: 1;
+  color: #fecaca;
+  font-size: 14px;
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: #fecaca;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0.2rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.error-close:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+/* 控制面板 */
+.voice-controls {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1.5rem;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.controls-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.main-controls {
+  display: flex;
+  gap: 1rem;
+}
+
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.control-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.control-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.control-btn.primary {
+  background: linear-gradient(45deg, #4ade80, #22c55e);
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
+}
+
+.control-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(45deg, #22c55e, #16a34a);
+  box-shadow: 0 6px 25px rgba(74, 222, 128, 0.4);
+}
+
+.control-btn.primary.active {
+  background: linear-gradient(45deg, #ef4444, #dc2626);
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  animation: listeningPulse 2s ease-in-out infinite;
+}
+
+@keyframes listeningPulse {
+  0%, 100% { 
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  }
+  50% { 
+    box-shadow: 0 4px 25px rgba(239, 68, 68, 0.6);
+  }
+}
+
+.control-btn.secondary {
+  background: linear-gradient(45deg, #fbbf24, #f59e0b);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.control-btn.secondary:hover:not(:disabled) {
+  background: linear-gradient(45deg, #f59e0b, #d97706);
+}
+
+.control-btn.small {
+  padding: 0.8rem 1rem;
+  flex-direction: row;
+  gap: 0.5rem;
+  font-size: 14px;
+}
+
+.btn-icon {
+  font-size: 24px;
+  transition: transform 0.3s ease;
+}
+
+.btn-icon.listening {
+  animation: micBounce 1s ease-in-out infinite;
+}
+
+@keyframes micBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.btn-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.secondary-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.recording-level {
+  width: 100px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.level-bar {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+  transition: width 0.1s ease;
+}
+
+.level-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #22c55e, #fbbf24, #ef4444);
+  transition: width 0.1s ease;
+  border-radius: 3px;
+}
+
+/* 輸入狀態指示器 */
+.input-status {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.status-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: indicator 1.5s ease-in-out infinite;
+}
+
+.indicator-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.indicator-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes indicator {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* 沉浸式佈局調整 */
+.voice-main.immersive-mode {
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  position: relative;
+}
+
+.visual-core {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.live-captions {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none; /* 讓點擊穿透 */
+}
+
+.caption {
+  padding: 12px 20px;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  text-align: center;
+  animation: slideUp 0.3s ease-out;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.ai-caption {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1f2937;
+  align-self: center;
+}
+
+.user-caption {
+  background: rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.95);
+  align-self: center;
+  font-style: italic;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 隱藏舊的元素 */
+.assistant-avatar,
+.assistant-status,
+.conversation-container,
+.current-input,
+.input-status {
+  display: none;
+}
+
+
+@media (max-width: 480px) {
+  .control-btn {
+    padding: 0.8rem 1rem;
+  }
+  
+  .btn-text {
+    font-size: 12px;
+  }
+  
+  .message-content {
+    max-width: 90%;
+    padding: 0.8rem 1rem;
+  }
+  
+  .message-text {
+    font-size: 14px;
+  }
+}
+
+/* 載入動畫 */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-animation {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2rem;
+}
+
+.wave {
+  width: 8px;
+  height: 40px;
+  background: white;
+  border-radius: 4px;
+  animation: wave 1.2s ease-in-out infinite;
+}
+
+.wave:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.wave:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+@keyframes wave {
+  0%, 40%, 100% {
+    transform: scaleY(0.4);
+  }
+  20% {
+    transform: scaleY(1);
+  }
+}
+
+.loading-screen h1 {
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.loading-screen p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+}

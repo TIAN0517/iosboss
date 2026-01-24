@@ -1,0 +1,18 @@
+# Copyright (c) Microsoft Corp. 
+# This is a sample HOSTS file used by Microsoft TCP/IP. 
+# 
+127.0.0.1       localhost 
+::1             localhost 
+
+# Added by Docker Desktop 
+49.158.236.211 host.docker.internal 
+49.158.236.211 gateway.docker.internal 
+# To allow the same kube context to work on the host and the container: 
+127.0.0.1 kubernetes.docker.internal 
+# End of section 
+127.0.0.1 originlineage.gamehost.cc 
+127.0.0.1 www.originlineage.gamehost.cc
+
+# JiuJiu Gas - Local Development
+127.0.0.1 linebot.tiankai.it.com
+127.0.0.1 bossai.tiankai.it.com

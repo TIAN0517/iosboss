@@ -1,0 +1,38 @@
+services:
+  linebot:
+    backup_enabled: true
+    command:
+    - python
+    - main.py
+    cpu_threshold: 70.0
+    cwd: C:\Users\tian7\OneDrive\Desktop\媽媽ios\line_bot_ai
+    max_instances: 3
+    memory_limit_mb: 512
+    min_instances: 1
+    persistent_data_path: ./data/linebot
+    port: 8888
+  nextjs:
+    backup_enabled: true
+    command:
+    - npm
+    - run
+    - dev
+    cpu_threshold: 80.0
+    cwd: C:\Users\tian7\OneDrive\Desktop\媽媽ios
+    max_instances: 2
+    memory_limit_mb: 1024
+    min_instances: 1
+    persistent_data_path: ./data/nextjs
+    port: 9999
+  voice:
+    backup_enabled: true
+    command:
+    - python
+    - instant_voice_test.py
+    cpu_threshold: 60.0
+    cwd: C:\Users\tian7\OneDrive\Desktop\媽媽ios\line_bot_ai
+    max_instances: 2
+    memory_limit_mb: 256
+    min_instances: 1
+    persistent_data_path: ./data/voice
+    port: 8889
