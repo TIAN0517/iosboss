@@ -89,6 +89,11 @@ docker-compose up     # Start all services
 - Middleware (`src/middleware.ts`) validates tokens for pages
 - API routes handle their own auth
 - Public paths: `/login`, `/api/simple-auth`, `/api/auth-logout`, `/api/auth-me`, `/api/auth/init-admin`
+- **User info headers**: When authenticated, middleware adds these headers to requests:
+  - `x-user-id`: User ID
+  - `x-user-username`: Username
+  - `x-user-role`: User role
+- API routes can read these headers instead of re-parsing the JWT token
 
 **4. Dual API Structure**
 - Both `app/api/` and `src/app/api/` exist
@@ -294,6 +299,8 @@ The JWT_SECRET in `src/middleware.ts:11` must match `.env`. Middleware runs in E
 
 `next.config.mjs` has TypeScript and ESLint errors **ignored** during build. This is intentional for deployment speed.
 
+**Vercel Deployment**: The `output: "standalone"` option is commented out to allow Vercel to use its default deployment mode. For PM2/local production, you may need to uncomment this and run `npm run build:standalong`.
+
 ## iOS-Style Components
 
 The app uses custom iOS-style components in `src/components/ui/ios-*`:
@@ -312,11 +319,13 @@ The app uses custom iOS-style components in `src/components/ui/ios-*`:
 
 3. **Local-first architecture**: Primary database is local PostgreSQL, Supabase is for backup only
 
-4. **No line_bot_ai**: The Python LINE Bot service files have been removed (see git status - `AD line_bot_ai/`)
+4. **No line_bot_ai**: The Python LINE Bot service files have been removed (see git status - `AD line_bot_ai/`). The AI functionality has been moved to a separate service on port 8888.
 
 5. **Path aliases**: `@` maps to `src/` (configured in `next.config.mjs`)
 
 6. **Prisma client**: Always use the singleton from `src/lib/prisma.ts`
+
+7. **Edge Runtime middleware**: JWT_SECRET is duplicated in `src/middleware.ts` because middleware runs in Edge Runtime and cannot access `.env` at runtime. When updating JWT_SECRET, you must update both `.env` AND `src/middleware.ts:11`.
 
 ## Deployment
 
@@ -331,14 +340,37 @@ npm run build
 pm2 start ecosystem.config.js
 ```
 
-**Docker**:
+**Production (PM2 with logs)**:
 ```bash
+npm run build
+pm2 start ecosystem.config.js
+pm2 logs gas-station-dev
+```
+
+**Docker** (Python AI service only - line_bot_ai has been removed):
+```bash
+# Note: docker-compose.yml is for legacy line_bot_ai service only
+# The main Next.js app runs natively on port 9999
 docker-compose up
 ```
 
 **Public URLs** (from STABLE_SETUP.md):
 - Backend: https://bossai.tiankai.it.com
 - LINE Bot: https://linebot.tiankai.it.com/api/webhook/line
+
+### Service Architecture
+
+The system uses a dual-service architecture:
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| Next.js Backend | **9999** | Main app, Web UI, API, Database access |
+| Python AI Service | **8888** | LINE Bot webhook, GLM-4.7 AI (via Next.js API) |
+| PostgreSQL | **5432** | Database |
+
+**Important**: Python AI service communicates with Next.js via HTTP API (`http://localhost:9999`) - it does NOT connect directly to the database. This maintains a single data source.
+
+**Startup Order**: PostgreSQL → Next.js (9999) → Python AI (8888)
 
 ## Testing
 
