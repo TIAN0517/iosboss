@@ -6,8 +6,8 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Vercel 不需要 standalone 模式，使用默認輸出
-  // output: "standalone", // 註釋掉，讓 Vercel 使用默認輸出
+  // 啟用 standalone 模式用於 PM2 部署
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
