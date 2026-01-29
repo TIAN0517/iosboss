@@ -4,6 +4,21 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { z } from 'zod'
+
+// 驗證 schema
+const addToCartSchema = z.object({
+  productId: z.string().min(1, '產品ID為必填'),
+  quantity: z.number().int().min(1, '數量必須大於0'),
+  sessionId: z.string().optional(),
+  userId: z.string().optional(),
+})
+
+const updateCartSchema = z.object({
+  cartItemId: z.string().min(1),
+  quantity: z.number().int().min(0, '數量不能為負數'),
+  checked: z.boolean().optional(),
+})
 
 /**
  * GET /api/ecommerce/cart?sessionId=xxx&userId=xxx
@@ -15,38 +30,50 @@ export async function GET(request: NextRequest) {
     const sessionId = searchParams.get('sessionId')
     const userId = searchParams.get('userId')
 
-    if (!sessionId && !userId) {
+    // 支援從 cookie 獲取 sessionId
+    const cookieSessionId = request.cookies.get('cart_session_id')?.value
+
+    if (!sessionId && !userId && !cookieSessionId) {
       return NextResponse.json({ error: '需要 sessionId 或 userId' }, { status: 400 })
     }
+
+    const effectiveSessionId = sessionId || cookieSessionId
 
     const cartItems = await db.cartItem.findMany({
       where: {
         OR: [
-          { sessionId: sessionId || undefined },
+          { sessionId: effectiveSessionId || undefined },
           { userId: userId || undefined },
         ],
+        // 只返回選中的項目用於結帳
+        // checked: true,
       },
       include: {
         product: {
           include: {
             category: true,
+            inventory: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     })
 
-    // 計算總金額
-    const subtotal = cartItems.reduce(
+    // 計算總金額（只計算選中的項目）
+    const checkedItems = cartItems.filter(item => item.checked)
+    const subtotal = checkedItems.reduce(
       (sum, item) => sum + item.product.price * item.quantity,
       0
     )
+
+    const totalItems = checkedItems.reduce((sum, item) => sum + item.quantity, 0)
 
     return NextResponse.json({
       items: cartItems,
       summary: {
         itemCount: cartItems.length,
-        totalItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+        checkedItemCount: checkedItems.length,
+        totalItems,
         subtotal: Math.round(subtotal * 100) / 100,
       },
     })
@@ -58,45 +85,71 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/ecommerce/cart
- * 新增商品到購物車
+ * 新增商品到購物車（支援庫存檢查）
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { productId, quantity, sessionId, userId } = body
+    const validationResult = addToCartSchema.safeParse(body)
 
-    if (!productId || !quantity) {
-      return NextResponse.json({ error: '缺少必填欄位' }, { status: 400 })
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: validationResult.error.errors[0].message },
+        { status: 400 }
+      )
     }
 
-    if (!sessionId && !userId) {
+    const { productId, quantity, sessionId, userId } = validationResult.data
+
+    // 從 cookie 獲取 sessionId
+    const cookieSessionId = request.cookies.get('cart_session_id')?.value
+    const effectiveSessionId = sessionId || cookieSessionId
+
+    if (!effectiveSessionId && !userId) {
       return NextResponse.json({ error: '需要 sessionId 或 userId' }, { status: 400 })
     }
 
-    // 檢查產品是否存在
+    // 檢查產品是否存在且上架中
     const product = await db.product.findUnique({
       where: { id: productId },
+      include: { inventory: true },
     })
 
     if (!product) {
       return NextResponse.json({ error: '產品不存在' }, { status: 404 })
     }
 
-    // 檢查是否已在購物車中
-    const existingItem = await db.cartItem.findFirst({
+    if (!product.isActive) {
+      return NextResponse.json({ error: '產品已下架' }, { status: 400 })
+    }
+
+    // 庫存檢查
+    const currentStock = product.inventory?.quantity || 0
+    const existingCartItem = await db.cartItem.findFirst({
       where: {
         productId,
-        ...(userId ? { userId } : { sessionId }),
+        ...(userId ? { userId } : { sessionId: effectiveSessionId }),
       },
     })
 
+    const newQuantity = existingCartItem
+      ? existingCartItem.quantity + quantity
+      : quantity
+
+    if (newQuantity > currentStock) {
+      return NextResponse.json(
+        { error: `庫存不足，目前庫存: ${currentStock}` },
+        { status: 400 }
+      )
+    }
+
     let cartItem
-    if (existingItem) {
+    if (existingCartItem) {
       // 更新數量
       cartItem = await db.cartItem.update({
-        where: { id: existingItem.id },
+        where: { id: existingCartItem.id },
         data: {
-          quantity: existingItem.quantity + quantity,
+          quantity: newQuantity,
         },
         include: {
           product: true,
@@ -108,8 +161,9 @@ export async function POST(request: NextRequest) {
         data: {
           productId,
           quantity,
-          sessionId: sessionId || undefined,
+          sessionId: effectiveSessionId || undefined,
           userId: userId || undefined,
+          checked: true,
         },
         include: {
           product: true,
@@ -117,10 +171,24 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({
+    // 構造響應並設置 session cookie
+    const response = NextResponse.json({
       cartItem,
       message: '已加入購物車',
     })
+
+    // 如果沒有 cookie sessionId，設置一個
+    if (!cookieSessionId && effectiveSessionId) {
+      response.cookies.set('cart_session_id', effectiveSessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 天
+        path: '/',
+      })
+    }
+
+    return response
   } catch (error) {
     console.error('加入購物車失敗:', error)
     return NextResponse.json({ error: '加入購物車失敗' }, { status: 500 })
@@ -129,28 +197,48 @@ export async function POST(request: NextRequest) {
 
 /**
  * PUT /api/ecommerce/cart
- * 更新購物車商品數量
+ * 更新購物車商品數量或勾選狀態
  */
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { cartItemId, quantity } = body
+    const validationResult = updateCartSchema.safeParse(body)
 
-    if (!cartItemId || quantity === undefined) {
-      return NextResponse.json({ error: '缺少必填欄位' }, { status: 400 })
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: validationResult.error.errors[0].message },
+        { status: 400 }
+      )
     }
 
-    if (quantity < 1) {
-      return NextResponse.json({ error: '數量必須大於 0' }, { status: 400 })
-    }
+    const { cartItemId, quantity, checked } = validationResult.data
+
+    const updateData: any = {}
+    if (quantity !== undefined) updateData.quantity = quantity
+    if (checked !== undefined) updateData.checked = checked
 
     const cartItem = await db.cartItem.update({
       where: { id: cartItemId },
-      data: { quantity },
+      data: updateData,
       include: {
-        product: true,
+        product: {
+          include: {
+            inventory: true,
+          },
+        },
       },
     })
+
+    // 如果是增加數量，檢查庫存
+    if (quantity !== undefined) {
+      const currentStock = cartItem.product.inventory?.quantity || 0
+      if (quantity > currentStock) {
+        return NextResponse.json(
+          { error: `庫存不足，目前庫存: ${currentStock}` },
+          { status: 400 }
+        )
+      }
+    }
 
     return NextResponse.json({
       cartItem,

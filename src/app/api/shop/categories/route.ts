@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
     const formatted = categories.map(c => ({
       id: c.id,
       name: c.name,
+      slug: c.name.toLowerCase().replace(/\s+/g, '-'),
+      icon: c.name.charAt(0), // 使用名稱第一個字作為圖標
       description: c.description,
       isActive: c.isActive,
       sortOrder: c.sortOrder,

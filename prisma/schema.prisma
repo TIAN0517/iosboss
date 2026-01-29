@@ -85,6 +85,8 @@ model Product {
   category    ProductCategory        @relation("CategoryProducts", fields: [categoryId], references: [id])
   alerts      InventoryAlert[]
   cartItems   CartItem[]
+  productReviews ProductReview[]
+  shopOrderItems ShopOrderItem[]
 }
 
 model Inventory {
@@ -793,6 +795,7 @@ model CartItem {
   userId    String?
   productId String
   quantity  Int      @default(1)
+  checked   Boolean  @default(true)  // 用於選擇結帳
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -800,4 +803,90 @@ model CartItem {
   @@index([sessionId])
   @@index([userId])
   @@index([productId])
+}
+
+// 優惠券模型
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  type        String   // percentage, fixed
+  value       Float
+  minOrder    Float    @default(0)
+  maxDiscount Float?
+  usageLimit  Int?
+  usedCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 商品評論模型
+model ProductReview {
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String?  // 可匿名
+  orderId    String?  // 購買過才能評論
+  rating     Int      // 1-5
+  content    String?
+  images     String[] // 評論圖片
+  isVerified Boolean  @default(false) // 購買驗證
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// 商城訂單模型 (區分於 GasOrder)
+model ShopOrder {
+  id             String   @id @default(cuid())
+  orderNo        String   @unique
+  customerId     String?  // 會員訂單
+  guestName      String?  // 訪客訂單
+  guestPhone     String?
+  guestEmail     String?
+  guestAddress   String?
+
+  subtotal       Float
+  discount       Float    @default(0)
+  deliveryFee    Float    @default(0)
+  total          Float
+  couponCode     String?  // 優惠券代碼
+
+  status         String   @default("pending") // pending, paid, processing, shipped, completed, cancelled
+  paymentMethod  String?  // cash, linepay, transfer
+  paymentAt      DateTime?
+
+  note           String?
+
+  // 聯絡人資訊
+  contactName    String?
+  contactPhone   String?
+  deliveryAddress String?
+  deliveryTime   String?  // 上午、下午、晚上
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  items          ShopOrderItem[]
+
+  @@index([orderNo])
+  @@index([status])
+  @@index([customerId])
+}
+
+// 商城訂單項目模型
+model ShopOrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  productId    String
+  productName  String   // 快照名稱
+  productImage String?  // 快照圖片
+  quantity     Int
+  unitPrice    Float
+  subtotal     Float
+  order        ShopOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product   @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
 }
