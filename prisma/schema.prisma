@@ -70,7 +70,13 @@ model Product {
   cost        Float
   capacity    String?
   unit        String                 @default("個")
+  description String?
+  imageUrl    String?
   isActive    Boolean                @default(true)
+  isFeatured  Boolean                @default(false)
+  rating      Float                  @default(0)
+  sales       Int                    @default(0)
+  sortOrder   Int                    @default(0)
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
   orders      GasOrderItem[]
@@ -78,6 +84,7 @@ model Product {
   inventoryTx InventoryTransaction[]
   category    ProductCategory        @relation("CategoryProducts", fields: [categoryId], references: [id])
   alerts      InventoryAlert[]
+  cartItems   CartItem[]
 }
 
 model Inventory {
@@ -543,6 +550,9 @@ model AttendanceRecord {
   clockOut  String?
   workHours Float?
   note      String?
+  type      String   @default("attendance") // attendance, leave, vacation
+  leaveType String?  // annual, sick, personal, unpaid
+  status    String   @default("pending") // pending, approved, rejected
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -550,6 +560,27 @@ model AttendanceRecord {
   @@index([date])
   @@index([userId])
   @@map("attendance_records")
+}
+
+// 休假/請假記錄模型
+model LeaveRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  userName    String
+  leaveType   String   // annual(特休), sick(病假), personal(事假), unpaid(無薪假), vacation(休假)
+  startDate   String
+  endDate     String
+  reason      String?
+  status      String   @default("pending") // pending, approved, rejected
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([startDate])
+  @@index([status])
+  @@map("leave_records")
 }
 
 model KnowledgeBase {
@@ -753,4 +784,20 @@ model users {
   gas_orders_gas_orders_driver_idTousers  gas_orders[] @relation("gas_orders_driver_idTousers")
 
   @@index([deleted_at], map: "idx_users_deleted_at")
+}
+
+// 購物車模型
+model CartItem {
+  id        String   @id @default(cuid())
+  sessionId String?
+  userId    String?
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([productId])
 }

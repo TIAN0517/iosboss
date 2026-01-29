@@ -76,16 +76,18 @@ import { VoiceQuickQuery } from '@/components/VoiceQuickQuery'
 import { ImmersiveVoiceAssistant } from '@/components/ImmersiveVoiceAssistant'
 import { DriverDeliveryApp } from '@/components/DriverDeliveryApp'
 import { ScheduleManagement } from '@/components/ScheduleManagement'
+import { ProductManagement } from '@/components/ProductManagement'
 import { triggerHaptic, useEdgeSwipe, usePullToRefresh } from '@/lib/ios-utils'
 import { AnimatePresence } from 'framer-motion'
 import { IOSSlideTransition } from '@/components/ui/page-transition'
 import { PullToRefreshIndicator, EdgeSwipeIndicator } from '@/components/ui/pull-to-refresh'
 
-type Section = 'dashboard' | 'customers' | 'orders' | 'inventory' | 'checks' | 'costs' | 'marketing' | 'reports' | 'meter' | 'staff' | 'calls' | 'monthly' | 'linebot' | 'excel-export' | 'chat' | 'schedules' | 'database' | 'shop'
+type Section = 'dashboard' | 'customers' | 'orders' | 'inventory' | 'checks' | 'costs' | 'marketing' | 'reports' | 'meter' | 'staff' | 'calls' | 'monthly' | 'linebot' | 'excel-export' | 'chat' | 'schedules' | 'database' | 'shop' | 'products'
 
 const menuItems = [
   { id: 'dashboard' as Section, icon: LayoutDashboard, label: '首頁', color: 'text-emerald-600', description: '儀表板總覽' },
   { id: 'shop' as Section, icon: ShoppingBag, label: '電商', color: 'text-pink-500', description: '線上購物商城' },
+  { id: 'products' as Section, icon: Package, label: '產品', color: 'text-cyan-600', description: '產品管理' },
   { id: 'customers' as Section, icon: Users, label: '客戶', color: 'text-blue-600', description: '管理客戶資料' },
   { id: 'orders' as Section, icon: ShoppingCart, label: '訂單', color: 'text-purple-600', description: '處理瓦斯訂單' },
   { id: 'inventory' as Section, icon: Package, label: '庫存', color: 'text-orange-600', description: '瓦斯庫存管理' },
@@ -308,6 +310,8 @@ export default function GasManagementSystem() {
           return <DatabaseManagement key={`database-${refreshKey}`} />
         case 'shop':
           return <Shop key={`shop-${refreshKey}`} />
+        case 'products':
+          return <ProductManagement key={`products-${refreshKey}`} />
         case 'dashboard':
         default:
           return <DashboardSection setActiveSection={setActiveSection} key={`dashboard-${refreshKey}`} />

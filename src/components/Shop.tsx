@@ -53,8 +53,8 @@ export function Shop() {
   const fetchData = async () => {
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('/api/products'),
-        fetch('/api/product-categories'),
+        fetch('/api/shop/products'),
+        fetch('/api/shop/categories'),
       ]);
 
       if (productsRes.ok && categoriesRes.ok) {
