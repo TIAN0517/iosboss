@@ -1,839 +1,449 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
-import { getUnifiedAIAssistant, MessageContext } from '@/lib/unified-ai-assistant'
 import { db } from '@/lib/db'
-import { logger, RequestContext, LogCategory } from '@/lib/logger'
-import { getLineDialogHandler } from '@/lib/line-dialog-handler'
-import { getConversationStateManager } from '@/lib/line-conversation-state'
-import crypto from 'crypto'
 
-/**
- * LINE Bot Webhook API (升級版)
- * 整合統一 AI 助手、群組管理、意圖分析
- *
- * 優化：立即返回 200 OK，異步處理事件避免 LINE webhook 逾時
- */
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || ''
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || ''
+const LINE_BOT_USER_ID = process.env.LINE_USER_ID || ''
 
-// LINE Bot 配置
-const LINE_CONFIG = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
-  channelSecret: process.env.LINE_CHANNEL_SECRET || '',
-  apiEndpoint: 'https://api.line.me/v2/bot/message/reply',
-  pushEndpoint: 'https://api.line.me/v2/bot/message/push',
-  skipSignatureVerify: process.env.LINE_SKIP_SIGNATURE_VERIFY === 'true',
+// 群組權限配置
+const GROUP_PERMISSIONS = {
+  BOSS: { level: 100, name: '老闆', color: '#8b5cf6', features: ['all'] },
+  ADMIN: { level: 90, name: '管理員', color: '#7c3aed', features: ['orders', 'inventory', 'delivery', 'customers', 'reports', 'knowledge', 'products'] },
+  MANAGER: { level: 80, name: '經理', color: '#6d28d9', features: ['orders', 'inventory', 'delivery', 'customers', 'reports'] },
+  DRIVER: { level: 50, name: '司機', color: '#3b82f6', features: ['delivery', 'my_tasks', 'complete_delivery'] },
+  SALES: { level: 40, name: '業務', color: '#10b981', features: ['orders', 'customers', 'my_performance'] },
+  CUSTOMER_SERVICE: { level: 30, name: '客服', color: '#f59e0b', features: ['orders', 'customers', 'knowledge', 'products'] },
+  EMPLOYEE: { level: 20, name: '員工', color: '#6366f1', features: ['orders', 'inventory'] },
+  GENERAL: { level: 10, name: '一般客戶', color: '#6b7280', features: ['order_gas', 'check_price', 'check_stock', 'contact', 'products'] },
 }
 
-// 驗證 LINE 簽名
-function verifyLineSignature(body: string, signature: string): boolean {
-  // 如果設置了跳過驗證，直接返回 true
-  if (LINE_CONFIG.skipSignatureVerify) {
-    console.warn('[LINE Webhook] Signature verification is DISABLED (LINE_SKIP_SIGNATURE_VERIFY=true)')
-    return true
-  }
-
-  // 調試日誌
-  console.log('[LINE Webhook] Debug info:', {
-    hasSecret: !!LINE_CONFIG.channelSecret,
-    secretLength: LINE_CONFIG.channelSecret?.length,
-    receivedSignature: signature?.substring(0, 20) + '...',
-    bodyLength: body?.length,
-  })
-
-  if (!LINE_CONFIG.channelSecret) {
-    console.warn('LINE_CHANNEL_SECRET not configured, skipping signature verification')
-    return true // 開發環境可以跳過
-  }
-
-  const hash = crypto
-    .createHmac('sha256', LINE_CONFIG.channelSecret)
-    .update(body, 'utf8')
-    .digest('base64')
-
-  const expectedSignature = `sha256=${hash}`
-
-  console.log('[LINE Webhook] Signature comparison:', {
-    expected: expectedSignature.substring(0, 30) + '...',
-    received: signature?.substring(0, 30) + '...',
-    match: signature === expectedSignature,
-  })
-
-  return signature === expectedSignature
+// Quick Reply 按鈕
+const QUICK_REPLIES: Record<string, any[]> = {
+  BOSS: [
+    { label: '📊 今日報表', text: '今日報表' },
+    { label: '📦 所有訂單', text: '所有訂單' },
+    { label: '💰 營收統計', text: '營收統計' },
+    { label: '👥 客戶列表', text: '客戶列表' },
+    { label: '🚚 配送狀態', text: '配送狀態' },
+    { label: '📋 庫存概覽', text: '庫存概覽' },
+    { label: '🛒 商品列表', text: '商品列表' },
+  ],
+  GENERAL: [
+    { label: '🛒 訂瓦斯', text: '我要訂瓦斯' },
+    { label: '💰 瓦斯價格', text: '瓦斯價格' },
+    { label: '📦 庫存查詢', text: '庫存查詢' },
+    { label: '🛒 商品目錄', text: '商品目錄' },
+    { label: '❓ 幫助', text: '幫助' },
+    { label: '📞 聯絡我們', text: '聯絡我們' },
+  ],
 }
 
-// POST - 接收 LINE Webhook（立即返回，異步處理）
-export async function POST(request: NextRequest) {
-  const requestId = logger.generateRequestId()
-  const logContext = new RequestContext()
-  logContext.setRequestId(requestId)
-  logContext.setAction('LINE_WEBHOOK')
+interface FlexMessage {
+  type: string
+  altText: string
+  contents: any
+}
 
+async function replyToLine(replyToken: string, messages: any[]): Promise<boolean> {
+  if (!LINE_CHANNEL_ACCESS_TOKEN) return false
   try {
-    // 獲取原始 body 用於驗證簽名
-    const body = await request.text()
-    const signature = request.headers.get('x-line-signature')
-
-    // ⚡ 如果沒有簽名，可能是驗證請求，直接返回 200
-    if (!signature) {
-      // LINE 有時會發送驗證請求（沒有簽名）
-      if (body.length === 0 || body === '{}') {
-        logger.info(LogCategory.API, 'LINE webhook verification request', logContext.get())
-        return NextResponse.json({ status: 'ok', message: 'Webhook verified' }, { status: 200 })
-      }
-      
-      logger.warn(LogCategory.SECURITY, 'Missing LINE signature', logContext.get())
-      // 開發環境允許跳過簽名驗證
-      if (process.env.NODE_ENV === 'development' || LINE_CONFIG.skipSignatureVerify) {
-        logger.warn(LogCategory.SECURITY, 'Skipping signature check in development', logContext.get())
-      } else {
-      return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
-    }
-    } else {
-    // 驗證簽名
-    if (!verifyLineSignature(body, signature)) {
-      logger.warn(LogCategory.SECURITY, 'Invalid LINE signature', logContext.get())
-        // 開發環境允許跳過簽名驗證
-        if (process.env.NODE_ENV === 'development' || LINE_CONFIG.skipSignatureVerify) {
-          logger.warn(LogCategory.SECURITY, 'Skipping signature check in development', logContext.get())
-        } else {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
-      }
-    }
-
-    // 解析事件數據
-    let data: any
-    try {
-      data = JSON.parse(body)
-    } catch (parseError) {
-      // 如果解析失敗，可能是空請求或驗證請求
-      logger.info(LogCategory.API, 'LINE webhook empty or invalid JSON', logContext.get())
-      return NextResponse.json({ status: 'ok', message: 'Empty request' }, { status: 200 })
-    }
-
-    const events = data.events || []
-
-    // 如果沒有事件，直接返回 200
-    if (events.length === 0) {
-      logger.info(LogCategory.API, 'LINE webhook no events', logContext.get())
-      return NextResponse.json({ status: 'ok', message: 'No events' }, { status: 200 })
-    }
-
-    logger.info(LogCategory.BUSINESS, 'LINE webhook received - async processing', {
-      ...logContext.get(),
-      eventCount: events.length,
-    })
-
-    // ⚡ 立即返回 200 OK，避免 LINE webhook 逾時
-    // 使用 setImmediate 確保響應已發送後再異步處理
-    setImmediate(() => {
-      processEventsAsync(events, requestId).catch((error) => {
-        console.error('[LINE Webhook Async] Error processing events:', error)
-      })
-    })
-
-    // 確保返回 200 狀態碼
-    return NextResponse.json({ status: 'ok', processed: true }, { status: 200 })
-  } catch (error: any) {
-    logger.error(LogCategory.API, 'LINE webhook error', error, logContext.get())
-    // 即使出錯也要返回 200，避免 LINE 重試
-    return NextResponse.json({ 
-      status: 'error', 
-      message: 'Error processing webhook',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    }, { status: 200 })
-  }
-}
-
-// 異步處理所有事件
-async function processEventsAsync(events: any[], requestId: string) {
-  const logContext = new RequestContext()
-  logContext.setRequestId(requestId)
-  logContext.setAction('LINE_WEBHOOK_ASYNC')
-
-  for (const event of events) {
-    try {
-      await handleLineEvent(event, logContext)
-    } catch (error) {
-      console.error(`[LINE Webhook Async] Error handling event:`, error)
-      logger.error(LogCategory.API, 'Failed to handle LINE event', error, logContext.get())
-    }
-  }
-
-  logger.info(LogCategory.BUSINESS, 'All LINE webhook events processed', {
-    ...logContext.get(),
-    totalEvents: events.length,
-  })
-}
-
-// 處理 LINE 事件
-async function handleLineEvent(event: any, logContext: any) {
-  const { type, source, message, replyToken, timestamp } = event
-
-  // 處理不同類型的事件
-  if (type === 'join') {
-    await handleJoinEvent(event, logContext)
-    return
-  }
-
-  if (type === 'memberJoined') {
-    await handleMemberJoinedEvent(event, logContext)
-    return
-  }
-
-  // 只處理訊息事件
-  if (type !== 'message') {
-    logger.debug(LogCategory.API, 'Skipping non-message event', {
-      ...logContext.get(),
-      eventType: type,
-    })
-    return
-  }
-
-  const userId = source?.userId
-  const groupId = source?.groupId
-  const roomId = source?.roomId
-  const messageType = message?.type
-  const messageText = messageType === 'text' ? message.text : ''
-
-  logger.info(LogCategory.BUSINESS, 'LINE message received (async)', {
-    ...logContext.get(),
-    userId,
-    groupId,
-    messageType,
-    messageText: messageText?.substring(0, 100),
-  })
-
-  // ⚡ 獲取群組類型（從資料庫）
-  let groupType: string | undefined = undefined
-  let isNewGroup = false
-  let capturedGroupInfo: any = null
-
-  if (groupId) {
-    // 先從資料庫查找現有群組
-    const existingGroup = await db.lineGroup.findUnique({
-      where: { groupId },
-      select: { groupType: true, isActive: true },
-    })
-
-    if (existingGroup) {
-      // 確保 groupType 是有效的 GroupType 枚舉值
-      const validTypes = ['admin', 'driver', 'sales', 'staff', 'cs', 'general']
-      if (validTypes.includes(existingGroup.groupType)) {
-        groupType = existingGroup.groupType
-      }
-    }
-
-    // 自動捕獲群組信息
-    isNewGroup = await captureGroupInfo(groupId, logContext)
-    if (isNewGroup) {
-      logger.info(LogCategory.BUSINESS, 'New group captured', {
-        ...logContext.get(),
-        groupId,
-      })
-      // 獲取捕獲的群組信息
-      capturedGroupInfo = await db.lineGroup.findUnique({
-        where: { groupId },
-      })
-      const validTypes = ['admin', 'driver', 'sales', 'staff', 'cs', 'general']
-      if (capturedGroupInfo?.groupType && validTypes.includes(capturedGroupInfo.groupType)) {
-        groupType = capturedGroupInfo.groupType
-      }
-    }
-  }
-
-  // 保存訊息記錄
-  await saveLineMessage({
-    lineGroupId: groupId,
-    userId,
-    messageType: messageType || 'unknown',
-    content: messageText || JSON.stringify(message),
-    timestamp: timestamp ? new Date(timestamp) : new Date(),
-  })
-
-  // 獲取 AI 回應
-  let responseText: string
-  let flexMessage: any = null
-  let quickReply: any = null
-  let audioResponse: Buffer | undefined = undefined
-
-  // 檢查是否請求語音回覆（文字訊息也可以觸發）
-  const wantsVoiceReply =
-    messageType === 'audio' ||  // 語音訊息自動用語音回覆
-    messageText.includes('用語音') ||  // 文字包含「用語音」
-    messageText.includes('語音回覆') ||  // 或「語音回覆」
-    messageText.includes('講給我聽')  // 或「講給我聽」
-
-  if (messageType === 'text') {
-    // ✨ 先檢查多輪對話處理器
-    const dialogHandler = getLineDialogHandler()
-    const dialogResult = await dialogHandler.handleDialog(userId, messageText, groupId)
-
-    if (dialogResult) {
-      // 多輪對話處理結果
-      responseText = dialogResult.response
-      quickReply = dialogResult.quickReply
-
-      // 如果對話結束，清除狀態
-      if (dialogResult.endConversation) {
-        const stateManager = getConversationStateManager()
-        stateManager.clearState(userId)
-      }
-
-      logger.info(LogCategory.BUSINESS, 'Dialog response generated', {
-        ...logContext.get(),
-        userId,
-        groupId,
-        responseLength: responseText.length,
-      })
-    } else {
-      // 單輪對話 - 使用統一 AI 助手
-      const assistant = getUnifiedAIAssistant()
-
-      // 構建上下文（包含群組類型）
-      const context: MessageContext = {
-        platform: wantsVoiceReply ? 'voice' : 'line',  // 如果請求語音，平台設為 voice
-        userId,
-        groupId,
-        groupType: groupType as any, // 傳遞群組類型
-      }
-
-      // 處理訊息（設置 30 秒超時）
-      const aiResponse = await Promise.race([
-        assistant.processMessage(messageText, context),
-        new Promise((resolve) =>
-          setTimeout(() => resolve({ text: '我正在處理您的請求，請稍候...' }), 30000)
-        )
-      ]) as any
-
-      responseText = aiResponse.text
-      flexMessage = aiResponse.flex
-      quickReply = aiResponse.quickReply
-
-      // 如果請求語音回覆，生成 TTS
-      if (wantsVoiceReply && aiResponse.shouldSpeak && aiResponse.text) {
-        try {
-          const { synthesizeWithElevenLabs, synthesizeWithAzure } = await import('@/lib/voice-service')
-          console.log('[LINE] TTS: Trying ElevenLabs for text message...')
-          const ttsResult = await synthesizeWithElevenLabs(aiResponse.text)
-          audioResponse = ttsResult.audioBuffer
-          console.log('[LINE] TTS: ElevenLabs success')
-        } catch (e) {
-          console.warn('[LINE] ElevenLabs failed, trying Azure:', e)
-          try {
-            const { synthesizeWithAzure } = await import('@/lib/voice-service')
-            const ttsResult = await synthesizeWithAzure(aiResponse.text)
-            audioResponse = ttsResult.audioBuffer
-            console.log('[LINE] TTS: Azure success')
-          } catch (e2) {
-            console.warn('[LINE] Azure TTS also failed')
-          }
-        }
-      }
-
-      logger.info(LogCategory.BUSINESS, 'AI response generated', {
-        ...logContext.get(),
-        userId,
-        groupId,
-        responseLength: responseText.length,
-        wantsVoiceReply,
-        hasFlex: !!flexMessage,
-        hasQuickReply: !!quickReply,
-      })
-      
-      console.log('[DEBUG] AI response details:', {
-        responseText: responseText?.substring(0, 100),
-        hasFlex: !!flexMessage,
-        hasQuickReply: !!quickReply,
-        wantsVoiceReply
-      })
-    }
-  } else if (messageType === 'audio') {
-    // 語音訊息 - 使用 Deepgram ASR + ElevenLabs/Azure TTS
-    const audioUrl = message?.content?.provider?.originalContentUrl
-    const assistant = getUnifiedAIAssistant()
-
-    logger.info(LogCategory.BUSINESS, 'Processing voice message', {
-      ...logContext.get(),
-      audioUrl: audioUrl?.substring(0, 50) + '...',
-    })
-
-    if (audioUrl) {
-      // 增加超時時間到 30 秒
-      const voiceResult = await Promise.race([
-        assistant.processVoiceMessage(audioUrl, {
-          platform: 'line',
-          userId,
-          groupId,
-        }),
-        new Promise((resolve) =>
-          setTimeout(() => resolve({
-            text: '語音處理中，請稍後...（處理時間較長）',
-            shouldSpeak: false,
-          }), 30000)
-        )
-      ]) as any
-
-      responseText = voiceResult.text
-
-      logger.info(LogCategory.BUSINESS, 'Voice processing completed', {
-        ...logContext.get(),
-        hasAudio: !!voiceResult.audioResponse,
-        shouldSpeak: voiceResult.shouldSpeak,
-      })
-
-      // 如果有 TTS 音频，保存到 audioResponse 以便发送
-      if (voiceResult.audioResponse && voiceResult.shouldSpeak) {
-        audioResponse = voiceResult.audioResponse
-      }
-    } else {
-      responseText = '收到您的語音訊息，但無法獲取音頻...'
-    }
-  } else {
-    responseText = '我目前只能處理文字訊息喔！'
-  }
-
-  // ✨ 如果是新捕獲的群組，在回應前添加群組 ID 信息
-  if (isNewGroup && groupId && capturedGroupInfo) {
-    const groupInfoHeader = `🔔 已自動捕獲群組信息
-
-群組名稱: ${capturedGroupInfo.groupName}
-群組 ID: ${groupId}
-成員數: ${capturedGroupInfo.memberCount || '未知'}
-
----
-`
-    responseText = groupInfoHeader + responseText
-  }
-
-  // 回覆 LINE 用戶
-  console.log('[DEBUG] About to call replyToLine:', {
-    hasResponseText: !!responseText,
-    responseText: responseText?.substring(0, 100),
-    hasFlex: !!flexMessage,
-    hasQuickReply: !!quickReply,
-    hasAudio: !!audioResponse
-  })
-  
-  await replyToLine(
-    replyToken,
-    responseText || '收到您的訊息，正在處理中...', // 確保總是有回應
-    flexMessage,
-    quickReply,
-    logContext,
-    audioResponse // 传递 TTS 音频（如果有）
-  )
-
-  // 保存回應記錄
-  await saveLineMessage({
-    lineGroupId: groupId,
-    userId: 'bot',
-    messageType: flexMessage ? 'flex' : 'text',
-    content: responseText,
-    timestamp: new Date(),
-  })
-}
-
-// 處理 Bot 加入群組事件
-async function handleJoinEvent(event: any, logContext: any) {
-  const { source, replyToken, timestamp } = event
-  const groupId = source?.groupId
-
-  if (!groupId) return
-
-  logger.info(LogCategory.BUSINESS, 'Bot joined group', {
-    ...logContext.get(),
-    groupId,
-  })
-
-  // 獲取群組資訊（成員數、群組摘要等）
-  const groupInfo = await getGroupInfo(groupId)
-
-  // 發送歡迎訊息
-  const welcomeMessage = `👋 歡迎使用九九瓦斯行 LINE Bot！
-
-我可以幫您：
-🛒 訂購瓦斯
-📦 查詢庫存
-📋 查詢訂單
-💬 客戶服務
-
-群組ID: ${groupId.slice(-8)}
-成員數: ${groupInfo.memberCount || '未知'}
-
-直接輸入指令即可使用！`
-
-  await replyToLine(replyToken, welcomeMessage)
-
-  // 保存群組記錄（包含詳細資訊）
-  try {
-    await db.lineGroup.upsert({
-      where: { groupId },
-      update: {
-        isActive: true,
-        memberCount: groupInfo.memberCount,
-        groupName: groupInfo.groupName,
-        updatedAt: new Date(),
+    const response = await fetch('https://api.line.me/v2/bot/message/reply', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
       },
-      create: {
-        groupId,
-        groupName: groupInfo.groupName || `LINE群組-${groupId.slice(-6)}`,
-        groupType: 'general',
-        permissions: ['create_order', 'check_order', 'check_inventory'],
-        isActive: true,
-        memberCount: groupInfo.memberCount,
-      },
+      body: JSON.stringify({ replyToken, messages }),
     })
-
-    logger.info(LogCategory.BUSINESS, 'Group info saved', {
-      ...logContext.get(),
-      groupId,
-      groupName: groupInfo.groupName,
-      memberCount: groupInfo.memberCount,
-    })
+    return response.ok
   } catch (error) {
-    console.error('Failed to save group:', error)
-  }
-}
-
-// 獲取群組詳細資訊
-async function getGroupInfo(groupId: string): Promise<{
-  groupName?: string
-  memberCount?: number
-}> {
-  try {
-    // 使用 LINE Messaging API 獲取群組成員數
-    const membersUrl = `https://api.line.me/v2/bot/group/${groupId}/members/count`
-    const summaryUrl = `https://api.line.me/v2/bot/group/${groupId}/summary`
-
-    const [membersResponse, summaryResponse] = await Promise.allSettled([
-      fetch(membersUrl, {
-        headers: {
-          'Authorization': `Bearer ${LINE_CONFIG.channelAccessToken}`,
-        },
-      }),
-      fetch(summaryUrl, {
-        headers: {
-          'Authorization': `Bearer ${LINE_CONFIG.channelAccessToken}`,
-        },
-      }),
-    ])
-
-    let memberCount: number | undefined
-    let groupName: string | undefined
-
-    if (membersResponse.status === 'fulfilled' && membersResponse.value.ok) {
-      const data = await membersResponse.value.json()
-      memberCount = data.count
-    }
-
-    if (summaryResponse.status === 'fulfilled' && summaryResponse.value.ok) {
-      const data = await summaryResponse.value.json()
-      groupName = data.groupName
-    }
-
-    return { groupName, memberCount }
-  } catch (error) {
-    console.error('Failed to get group info:', error)
-    return {}
-  }
-}
-
-// 處理成員加入事件
-async function handleMemberJoinedEvent(event: any, logContext: any) {
-  const { source, joinedMembers, replyToken } = event
-  const groupId = source?.groupId
-
-  if (!groupId) return
-
-  logger.info(LogCategory.BUSINESS, 'Member joined group', {
-    ...logContext.get(),
-    groupId,
-    memberCount: joinedMembers?.length || 0,
-  })
-}
-
-// ============================================
-// 自動捕獲群組信息（用於任何群組訊息）
-// ============================================
-/**
- * 當收到群組訊息時，自動捕獲並保存群組信息
- * 如果群組已存在則更新信息，否則創建新記錄
- * @returns true 如果是新捕獲的群組，false 如果群組已存在
- */
-async function captureGroupInfo(groupId: string, logContext: any): Promise<boolean> {
-  try {
-    // 檢查群組是否已存在
-    const existingGroup = await db.lineGroup.findUnique({
-      where: { groupId },
-    })
-
-    // 獲取群組資訊（成員數、群組名稱）
-    const groupInfo = await getGroupInfo(groupId)
-
-    // 保存或更新群組記錄
-    await db.lineGroup.upsert({
-      where: { groupId },
-      update: {
-        groupName: groupInfo.groupName || existingGroup?.groupName,
-        memberCount: groupInfo.memberCount || existingGroup?.memberCount,
-        isActive: true,
-        lastMessageAt: new Date(),
-        updatedAt: new Date(),
-      },
-      create: {
-        groupId,
-        groupName: groupInfo.groupName || `LINE群組-${groupId.slice(-6)}`,
-        groupType: 'general',
-        permissions: ['create_order', 'check_order', 'check_inventory'],
-        isActive: true,
-        memberCount: groupInfo.memberCount,
-        lastMessageAt: new Date(),
-      },
-    })
-
-    // 如果是新群組（之前不存在），返回 true
-    const isNewGroup = !existingGroup
-
-    if (isNewGroup) {
-      logger.info(LogCategory.BUSINESS, 'New LINE group auto-captured', {
-        ...logContext.get(),
-        groupId,
-        groupName: groupInfo.groupName,
-        memberCount: groupInfo.memberCount,
-      })
-    }
-
-    return isNewGroup
-  } catch (error) {
-    console.error('[LINE Webhook] Failed to capture group info:', error)
+    console.error('[LINE] Reply error:', error)
     return false
   }
 }
 
-// 回覆到 LINE
-async function replyToLine(
-  replyToken: string,
-  text: string,
-  flex?: any,
-  quickReply?: any,
-  logContext?: any,
-  audioBuffer?: Buffer
-) {
+async function pushMessage(userId: string, messages: any[]): Promise<boolean> {
+  if (!LINE_CHANNEL_ACCESS_TOKEN) return false
   try {
-    const messages: any[] = []
-
-    // 如果有音频，先上传并添加音频消息
-    if (audioBuffer) {
-      try {
-        const audioUrl = await uploadAudioToLine(audioBuffer)
-        messages.push({
-          type: 'audio',
-          originalContentUrl: audioUrl,
-          duration: getAudioDurationMs(audioBuffer),
-        })
-        logger.info(LogCategory.BUSINESS, 'LINE audio uploaded', { ...logContext, audioUrl })
-      } catch (audioError) {
-        console.warn('[LINE Webhook] Failed to upload audio, sending text only:', audioError)
-        // 音频上传失败时只发送文字
-      }
-    }
-
-    // 構建訊息數組
-    if (flex) {
-      messages.push({
-        type: 'flex',
-        altText: text,
-        contents: flex,
-      })
-    } else {
-      messages.push({
-        type: 'text',
-        text: text,
-      })
-    }
-
-    // 添加 Quick Reply
-    if (quickReply && messages.length > 0) {
-      // 安全檢查：確保 Quick Reply 格式正確
-      if (quickReply.items && Array.isArray(quickReply.items)) {
-        const safeQuickReply = {
-          ...quickReply,
-          items: quickReply.items.map(item => {
-            return {
-              type: 'message',
-              action: 'message',
-              label: item.label || '選項',
-              text: item.text || item.label || '選項'
-            }
-          })
-        }
-        messages[messages.length - 1].quickReply = safeQuickReply
-      }
-    }
-
-    const requestBody = {
-      replyToken,
-      messages,
-    }
-
-    // 設置 10 秒超時
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
-
-    const response = await fetch(LINE_CONFIG.apiEndpoint, {
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LINE_CONFIG.channelAccessToken}`,
+        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
       },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
+      body: JSON.stringify({ to: userId, messages }),
     })
-
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      
-      // 記錄詳細的請求和錯誤信息
-      logger.error(LogCategory.API, 'LINE reply failed', new Error(errorText), {
-        ...logContext,
-        status: response.status,
-        statusText: response.statusText,
-        requestBody: JSON.stringify({
-          replyToken,
-          messages,
-        }),
-        replyToken: replyToken?.substring(0, 20) + '...',
-        messageCount: messages?.length || 0,
-        hasQuickReply: !!quickReply,
-        quickReplyItems: quickReply?.items?.length || 0
-      })
-      
-      throw new Error(`LINE API error: ${response.status}`)
-    }
-
-    logger.info(LogCategory.BUSINESS, 'LINE reply sent', {
-      ...logContext,
-      messageLength: text.length,
-      hasFlex: !!flex,
-      hasQuickReply: !!quickReply,
-      hasAudio: !!audioBuffer,
-    })
-
-    const result = await response.json()
-    return result
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      console.error('[LINE Webhook] Reply timeout after 10s')
-    } else {
-      console.error('Error replying to LINE:', error)
-    }
-    throw error
+    return response.ok
+  } catch (error) {
+    console.error('[LINE] Push error:', error)
+    return false
   }
 }
 
-/**
- * 上传音频到 LINE Messaging API
- * @param audioBuffer 音频 Buffer (MP3 格式)
- * @returns 音频 URL
- */
-async function uploadAudioToLine(audioBuffer: Buffer): Promise<string> {
-  const LINE_DATA_ENDPOINT = 'https://api-data.line.me/v2/bot/message'
+// 創建商品 Flex Message Carousel
+function createProductCarousel(products: any[]): FlexMessage {
+  const columns = products.slice(0, 10).map((product, index) => ({
+    thumbnailImageUrl: product.imageUrl || 'https://via.placeholder.com/240x240?text=No+Image',
+    title: product.name.substring(0, 40),
+    text: `💰 NT$ ${product.price.toLocaleString()}\n${(product.description || '').substring(0, 30)}`,
+    actions: [
+      { type: 'message', label: '🛒 訂購', text: `訂購 ${product.name}` },
+      { type: 'uri', label: '📋 詳情', uri: `https://mama.tiankai.it.com/products/${product.id}` },
+    ],
+  }))
 
-  // 创建 FormData
-  const formData = new FormData()
-  // @ts-ignore - Buffer 可以直接作为 Blob 使用
-  const blob = new Blob([audioBuffer], { type: 'audio/mpeg' })
-  formData.append('file', blob, 'response.mp3')
-
-  const response = await fetch(`${LINE_DATA_ENDPOINT}/${Math.random().toString(36).substring(7)}/content`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LINE_CONFIG.channelAccessToken}`,
+  return {
+    type: 'flex',
+    altText: '🛒 九九瓦斯行 - 商品目錄',
+    contents: {
+      type: 'carousel',
+      contents: columns.map(col => ({
+        type: 'bubble',
+        hero: col.thumbnailImageUrl ? {
+          type: 'image',
+          url: col.thumbnailImageUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+        } : undefined,
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            { type: 'text', text: col.title, weight: 'bold', size: 'md', wrap: true },
+            { type: 'text', text: col.text, size: 'sm', wrap: true, margin: 'sm' },
+          ],
+        },
+        footer: {
+          type: 'box',
+          layout: 'horizontal',
+          contents: col.actions.map(action => ({
+            type: 'button',
+            style: action.type === 'message' ? 'primary' : 'secondary',
+            action: {
+              type: action.type,
+              label: action.label,
+              text: action.text,
+              uri: action.uri,
+            },
+          })),
+        },
+      })),
     },
-    body: formData,
-  })
+  }
+}
 
-  if (!response.ok) {
-    throw new Error(`LINE audio upload failed: ${response.status}`)
+// 創建訂單確認 Flex Message
+function createOrderConfirmFlex(orderInfo: any): FlexMessage {
+  return {
+    type: 'flex',
+    altText: '📦 訂單確認',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [{ type: 'text', text: '🛒 訂單確認', weight: 'bold', size: 'lg' }],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: `商品名稱：${orderInfo.name}`, margin: 'sm' },
+          { type: 'text', text: `💰 價格：NT$ ${orderInfo.price.toLocaleString()}`, margin: 'sm' },
+          { type: 'text', text: '─────────────────', margin: 'md' },
+          { type: 'text', text: '請輸入送貨地址：', margin: 'md' },
+          { type: 'text', text: '範例：台北市信義區XX路XX號', size: 'xs', color: '#888888' },
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            action: { type: 'message', label: '✅ 確認訂購', text: `確認訂購 ${orderInfo.name}` },
+          },
+          { type: 'button', style: 'secondary', action: { type: 'message', label: '❌ 取消', text: '取消訂單' } },
+        ],
+      },
+    },
+  }
+}
+
+async function getProducts(category?: string): Promise<any[]> {
+  try {
+    const where: any = { isActive: true }
+    if (category) {
+      where.categoryId = category
+    }
+    const products = await db.product.findMany({
+      where,
+      take: 10,
+      orderBy: { sortOrder: 'asc' },
+    })
+    return products
+  } catch (error) {
+    console.error('[LINE] Get products error:', error)
+    return []
+  }
+}
+
+async function getProductByName(name: string): Promise<any | null> {
+  try {
+    const product = await db.product.findFirst({
+      where: {
+        isActive: true,
+        name: { contains: name },
+      },
+    })
+    return product
+  } catch (error) {
+    return null
+  }
+}
+
+async function getGroupPermission(groupId: string) {
+  try {
+    const group = await db.lineGroup.findUnique({ where: { groupId } })
+    if (!group) return GROUP_PERMISSIONS.GENERAL
+
+    const permissions = (group.permissions as string[]) || []
+    const groupType = (group.groupType as string)?.toLowerCase() || 'general'
+
+    if (permissions.includes('system_admin') && permissions.includes('manage_users')) {
+      return GROUP_PERMISSIONS.BOSS
+    }
+    if (permissions.includes('manage_users') && permissions.includes('manage_costs')) {
+      return GROUP_PERMISSIONS.ADMIN
+    }
+    if (permissions.includes('manage_deliveries') && permissions.includes('view_reports')) {
+      return GROUP_PERMISSIONS.MANAGER
+    }
+    if (permissions.includes('manage_deliveries')) {
+      return GROUP_PERMISSIONS.DRIVER
+    }
+    if (permissions.includes('view_reports')) {
+      return GROUP_PERMISSIONS.SALES
+    }
+    if (permissions.includes('manage_customers')) {
+      return GROUP_PERMISSIONS.CUSTOMER_SERVICE
+    }
+    if (permissions.includes('manage_orders')) {
+      return GROUP_PERMISSIONS.EMPLOYEE
+    }
+
+    const typeMap: Record<string, any> = {
+      'boss': GROUP_PERMISSIONS.BOSS, 'admin': GROUP_PERMISSIONS.ADMIN,
+      'management': GROUP_PERMISSIONS.MANAGER, 'driver': GROUP_PERMISSIONS.DRIVER,
+      'delivery': GROUP_PERMISSIONS.DRIVER, 'sales': GROUP_PERMISSIONS.SALES,
+      'business': GROUP_PERMISSIONS.SALES, 'customer_service': GROUP_PERMISSIONS.CUSTOMER_SERVICE,
+      'support': GROUP_PERMISSIONS.CUSTOMER_SERVICE, 'employee': GROUP_PERMISSIONS.EMPLOYEE,
+    }
+    return typeMap[groupType] || GROUP_PERMISSIONS.GENERAL
+  } catch (error) {
+    return GROUP_PERMISSIONS.GENERAL
+  }
+}
+
+async function searchKnowledge(query: string): Promise<string[]> {
+  try {
+    const knowledge = await db.knowledgeBase.findMany({
+      where: {
+        isActive: true,
+        OR: [{ title: { contains: query } }, { content: { contains: query } }],
+      },
+      take: 3,
+      orderBy: { priority: 'desc' },
+    })
+    return knowledge.map(k => `[${k.category}] ${k.title}\n${k.content}`)
+  } catch (error) {
+    return []
+  }
+}
+
+async function getInventoryStatus(): Promise<string> {
+  try {
+    const products = await db.product.findMany({ take: 5, orderBy: { createdAt: 'desc' } })
+    if (!products || products.length === 0) return '📦 庫存狀態\n\n目前無商品資料'
+    let text = '📦 庫存/商品狀態\n\n'
+    for (const p of products) {
+      text += `• ${p.name}: NT$ ${p.price.toLocaleString()}\n`
+    }
+    text += '\n（如需詳細資訊，請至後台查詢）'
+    return text
+  } catch (error) {
+    return '📦 無法取得商品狀態'
+  }
+}
+
+function getQuickReplies(permission: any): any[] {
+  return QUICK_REPLIES[permission.name] || QUICK_REPLIES.GENERAL
+}
+
+function generateResponse(userMessage: string, permission: any): { text: string; flex?: FlexMessage; quickReplies: any[] } {
+  const lowerMsg = userMessage.toLowerCase()
+  let text = ''
+  let flex: FlexMessage | undefined
+  const quickReplies = getQuickReplies(permission)
+
+  // 商品相關關鍵字
+  const productKeywords = ['商品', '目錄', '產品', '商城', 'shop', 'product', 'catalog']
+  const isProductQuery = productKeywords.some(kw => lowerMsg.includes(kw))
+  const isAdminQuery = lowerMsg.includes('管理') || lowerMsg.includes('後台')
+
+  // 知識庫優先（管理/商品查詢除外）
+  // 省略知識庫檢查，直接處理主要功能
+
+  // 商品目錄
+  if (isProductQuery) {
+    text = '🛒 九九瓦斯行 - 商品目錄\n\n點擊下方按鈕查看商品詳情'
+    flex = {
+      type: 'flex',
+      altText: '📦 商品列表',
+      contents: {
+        type: 'carousel',
+        contents: [
+          {
+            type: 'bubble',
+            body: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                { type: 'text', text: '🛒 瓦斯商品', weight: 'bold', size: 'lg' },
+                { type: 'text', text: '點擊按鈕查看商品列表', margin: 'sm' },
+              ],
+            },
+            footer: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                { type: 'button', style: 'primary', action: { type: 'message', label: '📋 查看所有商品', text: '商品列表' } },
+                { type: 'button', style: 'secondary', action: { type: 'message', label: '💰 價格表', text: '瓦斯價格' } },
+              ],
+            },
+          },
+        ],
+      },
+    }
+    return { text, flex, quickReplies }
   }
 
-  // LINE 返回的音频 URL
-  const data = await response.json()
-  return data.url || response.headers.get('x-line-request-url') || ''
+  // 商品列表
+  if (lowerMsg === '商品列表' || lowerMsg === 'list' || lowerMsg === 'products') {
+    return { text: '📦 載入商品中...', flex, quickReplies }
+  }
+
+  // 訂購商品
+  if (lowerMsg.startsWith('訂購 ') || lowerMsg.startsWith('我要訂 ') || lowerMsg.includes('訂瓦斯')) {
+    const specs = lowerMsg.match(/(\d+)kg/) ? lowerMsg.match(/(\d+)kg/)[1] : null
+    if (specs) {
+      text = `✅ 為您訂購 ${specs}kg 瓦斯\n\n請提供送貨地址和聯繫電話，我們會盡快與您聯繫！`
+    } else {
+      text = '🛒 訂購瓦斯\n\n請輸入規格：\n• 4kg 瓦斯桶\n• 20kg 瓦斯桶\n• 50kg 瓦斯桶\n\n範例：「我要訂 20kg 瓦斯」'
+    }
+    return { text, quickReplies }
+  }
+
+  // 價格相關
+  if (lowerMsg.match(/價格|多少錢|費用|price/)) {
+    text = '💰 九九瓦斯行 - 價格參考\n\n'
+    text += '• 4kg 桶裝瓦斯：NT$ 220\n'
+    text += '• 10kg 桶裝瓦斯：NT$ 360\n'
+    text += '• 16kg 桶裝瓦斯：NT$ 550\n'
+    text += '• 20kg 標準桶裝瓦斯：NT$ 620\n'
+    text += '• 20kg 高級桶裝瓦斯：NT$ 730\n\n'
+    text += '（實際價格以當日為準，歡迎來電確認）'
+  }
+  // 庫存相關
+  else if (lowerMsg.match(/庫存|庫存查詢|inventory|stock/)) {
+    text = getInventoryStatus()
+  }
+  // 聯絡我們
+  else if (lowerMsg.match(/聯絡|聯繫|contact|電話/)) {
+    text = '📞 聯繫九九瓦斯行\n\n'
+    text += '電話：請致電各分店\n'
+    text += '營業時間：08:00 - 20:00\n\n'
+    text += '歡迎使用 LINE 線上訂購服務！'
+  }
+  // 幫助
+  else if (lowerMsg.match(/幫助|說明|怎麼用|help/)) {
+    text = `🙋 九九瓦斯行客服 - ${permission.name}版\n\n`
+    text += '可用指令：\n'
+    text += '• 「我要訂瓦斯」- 訂購瓦斯\n'
+    text += '• 「瓦斯價格」- 查詢價格\n'
+    text += '• 「商品目錄」- 瀏覽商品\n'
+    text += '• 「庫存」- 庫存查詢\n'
+    text += '• 「聯絡我們」- 聯繫方式'
+  }
+  // 預設
+  else {
+    const responses = ['收到！感謝您的留言。', '您好！我們會盡快回覆您。', '感謝您的詢問，請稍候。', '已收到您的訊息！']
+    text = responses[Math.floor(Math.random() * responses.length)]
+  }
+
+  return { text, flex, quickReplies }
 }
 
-/**
- * 估算音频时长（毫秒）
- * 对于 MP3 128kbps 16kHz mono，大约 1KB = 60ms
- */
-function getAudioDurationMs(audioBuffer: Buffer): number {
-  // 简单估算：128kbps = 16KB/s，所以 1KB ≈ 62.5ms
-  return Math.round((audioBuffer.length * 62.5))
-}
-
-// 保存 LINE 訊息記錄
-async function saveLineMessage(data: {
-  lineGroupId?: string
-  userId?: string
-  messageType: string
-  content: string
-  timestamp: Date
-}) {
+export async function POST(request: NextRequest) {
   try {
-    let dbLineGroupId: string | undefined = undefined
-    
-    if (data.lineGroupId) {
-      const group = await db.lineGroup.findUnique({
-        where: { groupId: data.lineGroupId },
-        select: { id: true }
-      })
-      
-      if (group) {
-        dbLineGroupId = group.id
-      } else {
-        console.warn(`LineGroup not found for groupId: ${data.lineGroupId}`)
+    const body = await request.text()
+    const signature = request.headers.get('X-Line-Signature') || ''
+
+    if (LINE_CHANNEL_SECRET && process.env.LINE_SKIP_SIGNATURE_VERIFY !== 'true') {
+      if (!signature) {
+        return NextResponse.json({ error: '缺少簽名' }, { status: 401 })
       }
     }
-    
-    await db.lineMessage.create({
-      data: {
-        lineGroupId: dbLineGroupId,
-        userId: data.userId,
-        messageType: data.messageType,
-        content: data.content,
-        timestamp: data.timestamp,
-      },
-    })
+
+    const data = JSON.parse(body)
+    const events = data.events || []
+
+    for (const event of events) {
+      if (event.type === 'message' && event.message.type === 'text') {
+        const userMessage = event.message.text.trim()
+        const userId = event.source?.userId || 'unknown'
+        const groupId = event.source?.groupId || null
+        const replyToken = event.replyToken
+
+        console.log(`[LINE] 收到: "${userMessage}" from ${userId}`)
+
+        const permission = groupId ? await getGroupPermission(groupId) : GROUP_PERMISSIONS.GENERAL
+
+        // 商品列表特殊處理
+        if (userMessage === '商品列表' || userMessage === 'list' || userMessage === 'products') {
+          const products = await getProducts()
+          if (products.length > 0) {
+            const flex = createProductCarousel(products)
+            const messages = [flex, { type: 'text', text: `找到 ${products.length} 項商品，點擊即可訂購！` }]
+            await replyToLine(replyToken, messages)
+          } else {
+            await replyToLine(replyToken, [{ type: 'text', text: '目前無商品資料' }])
+          }
+          continue
+        }
+
+        const { text, flex, quickReplies } = generateResponse(userMessage, permission)
+
+        const messages: any[] = [{ type: 'text', text }]
+        if (flex) {
+          messages.push(flex)
+        }
+        if (quickReplies.length > 0) {
+          messages[0].quickReply = { items: quickReplies.map(qr => ({ type: 'action', action: { type: 'message', label: qr.label, text: qr.text } })) }
+        }
+
+        await replyToLine(replyToken, messages)
+        console.log(`[LINE] 回覆: ${text.substring(0, 50)}...`)
+      }
+    }
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Failed to save LINE message:', error)
-    // 不拋出錯誤，避免影響主要功能
+    console.error('[LINE Webhook] 錯誤:', error)
+    return NextResponse.json({ error: `Webhook 處理失敗: ${error instanceof Error ? error.message : 'Unknown error'}` }, { status: 500 })
   }
-}
-
-// GET - Webhook 驗證端點
-export async function GET(request: NextRequest) {
-  // 同時返回當前配置的群組 ID 信息
-  const adminGroupId = process.env.LINE_ADMIN_GROUP_ID || '未設定'
-
-  return NextResponse.json({
-    status: 'ready',
-    message: 'LINE Bot Webhook is ready (Humanized Conversational AI)',
-    configuredGroups: {
-      admin: adminGroupId,
-      driver: process.env.LINE_DRIVER_GROUP_ID || '未設定',
-      sales: process.env.LINE_SALES_GROUP_ID || '未設定',
-    },
-    hint: '請發送訊息到 LINE 群組以自動捕獲群組 ID',
-    features: {
-      intentAnalysis: true,
-      groupManagement: true,
-      unifiedAI: true,
-      flexMessages: true,
-      quickReply: true,
-      voiceSupport: true,
-      asyncProcessing: true,
-      scheduleSheet: true, // 休假表功能
-    },
-  })
 }

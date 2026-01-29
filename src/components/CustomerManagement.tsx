@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,8 @@ import {
   DollarSign,
   Database
 } from 'lucide-react'
+import { useCustomers, useCustomerGroups, useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from '@/hooks/useApi'
+import { showSuccess, showError, showLoading, dismissToast } from '@/hooks/useToast'
 
 interface CustomerGroup {
   id: string
@@ -44,9 +46,6 @@ interface Customer {
 }
 
 export function CustomerManagement() {
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [groups, setGroups] = useState<CustomerGroup[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -62,76 +61,59 @@ export function CustomerManagement() {
     creditLimit: '0',
   })
 
-  // 載入客戶資料
-  useEffect(() => {
-    loadCustomers()
-    loadGroups()
-  }, [])
+  // 使用 React Query hooks
+  const { data: customersData, isLoading: loading } = useCustomers({
+    search: searchTerm,
+    limit: 100, // 客戶數量通常較少
+  })
+  const { data: groupsData } = useCustomerGroups()
 
-  const loadCustomers = async () => {
-    try {
-      const res = await fetch('/api/customers')
-      if (res.ok) {
-        setCustomers(await res.json())
-      }
-    } catch (error) {
-      console.error('載入客戶失敗:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const createCustomer = useCreateCustomer()
+  const updateCustomer = useUpdateCustomer()
+  const deleteCustomer = useDeleteCustomer()
 
-  const loadGroups = async () => {
-    try {
-      const res = await fetch('/api/customer-groups')
-      if (res.ok) {
-        setGroups(await res.json())
-      }
-    } catch (error) {
-      console.error('載入分組失敗:', error)
-    }
-  }
+  const customers = customersData?.data || []
+  const groups = groupsData || []
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    try {
-      const url = selectedCustomer ? `/api/customers/${selectedCustomer.id}` : '/api/customers'
-      const method = selectedCustomer ? 'PUT' : 'POST'
+    const toastId = showLoading(selectedCustomer ? '更新客戶中...' : '新增客戶中...')
 
-      // 處理 __none__ 值，將其轉換為 null
+    try {
       const submitData = {
         ...formData,
         groupId: formData.groupId === '__none__' ? null : formData.groupId || null,
         creditLimit: parseFloat(formData.creditLimit),
       }
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submitData),
-      })
-
-      if (res.ok) {
-        await loadCustomers()
-        setShowAddDialog(false)
-        resetForm()
+      if (selectedCustomer) {
+        await updateCustomer.mutateAsync({ id: selectedCustomer.id, data: submitData })
+        showSuccess('客戶更新成功')
+      } else {
+        await createCustomer.mutateAsync(submitData)
+        showSuccess('客戶新增成功')
       }
-    } catch (error) {
-      console.error('保存失敗:', error)
+
+      setShowAddDialog(false)
+      resetForm()
+    } catch (error: any) {
+      showError(error.message || '操作失敗，請稍後再試')
+    } finally {
+      dismissToast(toastId)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('確定要刪除這個客戶嗎？')) return
+    const toastId = showLoading('刪除客戶中...')
 
     try {
-      const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        await loadCustomers()
-      }
-    } catch (error) {
-      console.error('刪除失敗:', error)
+      await deleteCustomer.mutateAsync(id)
+      showSuccess('客戶刪除成功')
+    } catch (error: any) {
+      showError(error.message || '刪除失敗，請稍後再試')
+    } finally {
+      dismissToast(toastId)
     }
   }
 
@@ -152,7 +134,7 @@ export function CustomerManagement() {
   // 查詢川紀客戶
   const handleQueryChuanji = async () => {
     if (!formData.phone) {
-      alert('請先輸入電話號碼')
+      showError('請先輸入電話號碼')
       return
     }
 
@@ -172,13 +154,13 @@ export function CustomerManagement() {
           note: '',
           creditLimit: String(data.customer.creditLimit || 0),
         })
-        alert(`找到客戶：${data.customer.name}`)
+        showSuccess(`找到客戶：${data.customer.name}`)
       } else {
-        alert('在川紀系統中找不到此客戶')
+        showWarning('在川紀系統中找不到此客戶')
       }
     } catch (error) {
       console.error('查詢川紀失敗:', error)
-      alert('查詢失敗，請稍後再試')
+      showError('查詢失敗，請稍後再試')
     } finally {
       setChuanjiLoading(false)
     }
@@ -196,13 +178,6 @@ export function CustomerManagement() {
     })
     setSelectedCustomer(null)
   }
-
-  // 過濾客戶
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm) ||
-    customer.address.toLowerCase().includes(searchTerm.toLowerCase())
-  )
 
   return (
     <div className="space-y-4 pb-24 md:pb-6">
@@ -233,7 +208,7 @@ export function CustomerManagement() {
 
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">載入中...</div>
-          ) : filteredCustomers.length === 0 ? (
+          ) : customers.length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 mb-2">
@@ -249,7 +224,7 @@ export function CustomerManagement() {
           ) : (
             <ScrollArea className="h-[600px]">
               <div className="space-y-2">
-                {filteredCustomers.map((customer) => (
+                {customers.map((customer) => (
                   <Card key={customer.id} className="p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">

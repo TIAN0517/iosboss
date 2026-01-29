@@ -67,6 +67,7 @@ import { AIAssistant } from '@/components/AIAssistant'
 import { SmartAIAssistant } from '@/components/SmartAIAssistant'
 import { VoiceAIAssistant } from '@/components/VoiceAIAssistant'
 import { Shop } from '@/components/Shop'
+import { ShopOrderManagement } from '@/components/ShopOrderManagement'
 import { ExcelExportTool } from '@/components/ExcelExportTool'
 import { ChatSection } from '@/components/ChatSection'
 import { DatabaseManagement } from '@/components/DatabaseManagement'
@@ -82,11 +83,12 @@ import { AnimatePresence } from 'framer-motion'
 import { IOSSlideTransition } from '@/components/ui/page-transition'
 import { PullToRefreshIndicator, EdgeSwipeIndicator } from '@/components/ui/pull-to-refresh'
 
-type Section = 'dashboard' | 'customers' | 'orders' | 'inventory' | 'checks' | 'costs' | 'marketing' | 'reports' | 'meter' | 'staff' | 'calls' | 'monthly' | 'linebot' | 'excel-export' | 'chat' | 'schedules' | 'database' | 'shop' | 'products'
+type Section = 'dashboard' | 'customers' | 'orders' | 'inventory' | 'checks' | 'costs' | 'marketing' | 'reports' | 'meter' | 'staff' | 'calls' | 'monthly' | 'linebot' | 'excel-export' | 'chat' | 'schedules' | 'database' | 'shop' | 'products' | 'shop-orders'
 
 const menuItems = [
   { id: 'dashboard' as Section, icon: LayoutDashboard, label: '首頁', color: 'text-emerald-600', description: '儀表板總覽' },
   { id: 'shop' as Section, icon: ShoppingBag, label: '電商', color: 'text-pink-500', description: '線上購物商城' },
+  { id: 'shop-orders' as Section, icon: Receipt, label: '商城訂單', color: 'text-orange-500', description: '商城訂單管理' },
   { id: 'products' as Section, icon: Package, label: '產品', color: 'text-cyan-600', description: '產品管理' },
   { id: 'customers' as Section, icon: Users, label: '客戶', color: 'text-blue-600', description: '管理客戶資料' },
   { id: 'orders' as Section, icon: ShoppingCart, label: '訂單', color: 'text-purple-600', description: '處理瓦斯訂單' },
@@ -310,6 +312,8 @@ export default function GasManagementSystem() {
           return <DatabaseManagement key={`database-${refreshKey}`} />
         case 'shop':
           return <Shop key={`shop-${refreshKey}`} />
+        case 'shop-orders':
+          return <ShopOrderManagement key={`shop-orders-${refreshKey}`} />
         case 'products':
           return <ProductManagement key={`products-${refreshKey}`} />
         case 'dashboard':

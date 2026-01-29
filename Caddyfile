@@ -4,14 +4,30 @@
 # 主域名: tiankai.it.com
 # ========================================
 
-# linebot.tiankai.it.com -> Go LINE Bot (port 9997)
+# linebot.tiankai.it.com -> Next.js (port 9999)
 # LINE Bot Webhook 使用這個域名
 linebot.tiankai.it.com {
-    reverse_proxy localhost:9997
+    # 傳遞 LINE Signature header
+    header_up X-Line-Signature {header.X-Line-Signature}
+
+    # LINE Webhook 轉發到 Next.js
+    handle /api/line-webhook* {
+        reverse_proxy localhost:9999
+    }
+
+    # LINE Webhook 備用路徑
+    handle /api/webhook/line* {
+        reverse_proxy localhost:9999
+    }
 
     # 健康檢查端點
     handle /health {
         respond "OK" 200
+    }
+
+    # 預設轉發到 Next.js
+    handle /* {
+        reverse_proxy localhost:9999
     }
 
     # 錯誤頁面

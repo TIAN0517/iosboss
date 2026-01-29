@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans_TC } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 // 使用思源黑體（Noto Sans TC），適合中文顯示
 const notoSansTC = Noto_Sans_TC({
@@ -95,7 +96,9 @@ export default function RootLayout({
         lang="zh-TW"
         className={`${notoSansTC.variable} font-sans antialiased bg-background text-foreground ios-safe-area`}
       >
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
         <Toaster />
       </body>
     </html>
