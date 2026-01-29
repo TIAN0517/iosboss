@@ -137,7 +137,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // pending -> cancelled 是允許的
-    if (order.status === 'pending' && status === 'cancelled') {
+    if (status === 'cancelled') {
       // 取消訂單，退還庫存
       await db.$transaction(async (tx) => {
         const items = await tx.shopOrderItem.findMany({
@@ -145,24 +145,30 @@ export async function PUT(request: NextRequest) {
         })
 
         for (const item of items) {
+          // 使用查詢後的庫存數量作為 quantityBefore
           const inventory = await tx.inventory.findUnique({
             where: { productId: item.productId },
           })
 
+          const quantityBefore = inventory?.quantity || 0
+          const quantityAfter = quantityBefore + item.quantity
+
+          // 更新庫存
           await tx.inventory.update({
             where: { productId: item.productId },
             data: {
-              quantity: { increment: item.quantity },
+              quantity: quantityAfter,
             },
           })
 
+          // 記錄庫存交易
           await tx.inventoryTransaction.create({
             data: {
               productId: item.productId,
               type: 'return',
               quantity: item.quantity,
-              quantityBefore: inventory?.quantity || 0,
-              quantityAfter: (inventory?.quantity || 0) + item.quantity,
+              quantityBefore,
+              quantityAfter,
               reason: `取消訂單 ${orderNo}`,
             },
           })

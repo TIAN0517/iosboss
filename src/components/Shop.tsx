@@ -12,6 +12,7 @@ import {
   useUpdateCart,
   useRemoveFromCart,
   useCheckout,
+  useValidateCoupon,
 } from '@/hooks/useShop';
 import { useToast } from '@/hooks/useToast';
 
@@ -68,6 +69,10 @@ export function Shop() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showOrderComplete, setShowOrderComplete] = useState(false);
   const [newOrderNo, setNewOrderNo] = useState<string | null>(null);
+  // 追蹤圖片載入失敗的產品
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  // 購物車移除確認
+  const [removeItemId, setRemoveItemId] = useState<string | null>(null);
 
   // 表單狀態
   const [checkoutForm, setCheckoutForm] = useState<CheckoutFormData>({
@@ -80,6 +85,11 @@ export function Shop() {
     couponCode: '',
   });
 
+  // 優惠券驗證狀態
+  const [couponDiscount, setCouponDiscount] = useState<number>(0);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
   const sessionId = typeof window !== 'undefined' ? generateSessionId() : '';
   const { showSuccess, showError, showLoading, dismissToast } = useToast();
 
@@ -89,6 +99,74 @@ export function Shop() {
   const updateCartMutation = useUpdateCart();
   const removeFromCartMutation = useRemoveFromCart();
   const checkoutMutation = useCheckout();
+  const validateCouponMutation = useValidateCoupon();
+
+  // 計算總金額
+  const cartTotal = cartData?.items
+    .filter((item) => item.checked)
+    .reduce((sum, item) => sum + item.product.price * item.quantity, 0) || 0;
+
+  const cartCount = cartData?.items
+    .filter((item) => item.checked)
+    .reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+  // 驗證優惠券
+  const validateCoupon = useCallback(async () => {
+    const code = checkoutForm.couponCode.trim();
+    if (!code) {
+      setCouponDiscount(0);
+      setCouponError(null);
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const response = await fetch('/api/ecommerce/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, cartAmount: cartTotal }),
+      });
+
+      const data = await response.json();
+
+      if (data.valid && data.discountAmount !== undefined) {
+        setCouponDiscount(data.discountAmount);
+        setCouponError(null);
+      } else {
+        setCouponDiscount(0);
+        setCouponError(data.error || '優惠券無效');
+      }
+    } catch (error) {
+      setCouponDiscount(0);
+      setCouponError('驗證失敗，請稍後重試');
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  }, [checkoutForm.couponCode, cartTotal]);
+
+  // 優惠券輸入變化時清除錯誤
+  const handleCouponChange = (value: string) => {
+    setCheckoutForm({ ...checkoutForm, couponCode: value.toUpperCase() });
+    setCouponError(null);
+  };
+
+  // 圖片載入失敗處理
+  const handleImageError = (productId: string) => {
+    setImageErrors(prev => new Set(prev).add(productId));
+  };
+
+  // 確認移除商品
+  const confirmRemoveItem = (cartItemId: string) => {
+    removeFromCartMutation.mutate(cartItemId, {
+      onSuccess: () => {
+        showSuccess('已移除商品');
+        refetchCart();
+      },
+    });
+    setRemoveItemId(null);
+  };
 
   // 獲取產品和分類資料
   useEffect(() => {
@@ -186,15 +264,6 @@ export function Shop() {
     [updateCartMutation, refetchCart]
   );
 
-  // 計算總金額
-  const cartTotal = cartData?.items
-    .filter((item) => item.checked)
-    .reduce((sum, item) => sum + item.product.price * item.quantity, 0) || 0;
-
-  const cartCount = cartData?.items
-    .filter((item) => item.checked)
-    .reduce((sum, item) => sum + item.quantity, 0) || 0;
-
   // 結帳處理
   const handleCheckout = () => {
     if (cartData?.items.filter((i) => i.checked).length === 0) {
@@ -281,10 +350,129 @@ export function Shop() {
     }
   });
 
+  // 載入骨架屏
+  const LoadingSkeleton = () => (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <IOSCard key={i} className="overflow-hidden animate-pulse">
+          <div className="w-full h-40 bg-gray-200" />
+          <div className="p-3 space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-3/4" />
+            <div className="h-3 bg-gray-200 rounded w-full" />
+            <div className="h-3 bg-gray-200 rounded w-1/2" />
+            <div className="h-8 bg-gray-200 rounded mt-2" />
+          </div>
+        </IOSCard>
+      ))}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-easy-body text-gray-500">載入中...</div>
+      <div className="max-w-7xl mx-auto p-4 pb-32">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="h-8 bg-gray-200 rounded w-32 animate-pulse" />
+            <div className="h-4 bg-gray-200 rounded w-48 mt-2 animate-pulse" />
+          </div>
+        </div>
+        <LoadingSkeleton />
+      </div>
+    );
+  }
+
+  // 空產品狀態
+  if (sortedProducts.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto p-4 pb-32">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-easy-title font-bold text-gray-900">
+              <BrandIcon size={28} className="inline mr-2" />
+              瓦斯行電商
+            </h1>
+            <p className="text-easy-caption text-gray-500 mt-1">
+              線上訂購，快速配送
+            </p>
+          </div>
+          <IOSButton onClick={() => setShowCart(!showCart)} className="relative">
+            <BrandIcon size={24} />
+            購物車 ({cartCount})
+          </IOSButton>
+        </div>
+
+        {/* Categories */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+          <button
+            onClick={() => {
+              setSelectedCategory(null);
+              triggerHaptic('light');
+            }}
+            className={`flex-shrink-0 px-4 py-2 rounded-full text-easy-body font-medium transition-colors ${
+              !selectedCategory
+                ? 'bg-orange-500 text-white'
+                : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            全部
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => {
+                setSelectedCategory(category.id);
+                triggerHaptic('light');
+              }}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-easy-body font-medium transition-colors ${
+                selectedCategory === category.id
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {category.icon}{category.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Search and Sort */}
+        <div className="flex gap-2 mb-6">
+          <Input
+            placeholder="搜尋商品..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1"
+          />
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              triggerHaptic('light');
+            }}
+            className="px-4 py-3 rounded-lg border border-gray-200 bg-white"
+          >
+            <option value="default">預設排序</option>
+            <option value="price-asc">價格低到高</option>
+            <option value="price-desc">價格高到低</option>
+            <option value="rating">評分最高</option>
+            <option value="sales">銷量最高</option>
+          </select>
+        </div>
+
+        {/* Empty State */}
+        <div className="flex flex-col items-center justify-center py-16">
+          <BrandIcon size={64} className="text-gray-300 mb-4" />
+          <p className="text-easy-body text-gray-500 mb-2">
+            {searchQuery ? '找不到符合的商品' : '目前沒有商品'}
+          </p>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="text-orange-500 hover:text-orange-600 text-sm"
+            >
+              清除搜尋
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -372,12 +560,17 @@ export function Shop() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {sortedProducts.map((product) => (
           <IOSCard key={product.id} className="overflow-hidden">
-            {product.imageUrl && (
+            {product.imageUrl && !imageErrors.has(product.id) ? (
               <img
                 src={product.imageUrl}
                 alt={product.name}
                 className="w-full h-40 object-cover"
+                onError={() => handleImageError(product.id)}
               />
+            ) : (
+              <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
+                <span className="text-4xl">📦</span>
+              </div>
             )}
             <div className="p-3">
               <h3 className="text-easy-body font-semibold text-gray-900 mb-1 line-clamp-2">
@@ -459,12 +652,17 @@ export function Shop() {
                         onChange={() => handleToggleChecked(item.id, item.checked)}
                         className="w-5 h-5 text-orange-500 rounded"
                       />
-                      {item.product.imageUrl && (
+                      {item.product.imageUrl && !imageErrors.has(item.productId) ? (
                         <img
                           src={item.product.imageUrl}
                           alt={item.product.name}
                           className="w-16 h-16 object-cover rounded"
+                          onError={() => handleImageError(item.productId)}
                         />
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-2xl">
+                          📦
+                        </div>
                       )}
                       <div className="flex-1">
                         <h3 className="text-easy-body font-semibold">
@@ -480,17 +678,24 @@ export function Shop() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleUpdateQuantity(item.id, -1)}
-                          className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center"
+                          className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
                         >
                           -
                         </button>
                         <span className="w-8 text-center">{item.quantity}</span>
                         <button
                           onClick={() => handleUpdateQuantity(item.id, 1)}
-                          className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center"
+                          className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center hover:bg-orange-600"
                           disabled={item.quantity >= (item.product.inventory?.quantity || 0)}
                         >
                           +
+                        </button>
+                        <button
+                          onClick={() => setRemoveItemId(item.id)}
+                          className="w-8 h-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center hover:bg-red-200 ml-2"
+                          title="移除商品"
+                        >
+                          🗑
                         </button>
                       </div>
                     </div>
@@ -503,7 +708,7 @@ export function Shop() {
               <div className="p-4 border-t bg-gray-50">
                 <div className="flex justify-between text-easy-body mb-4">
                   <span>總計:</span>
-                  <span className="font-bold text-orange-500">NT${cartTotal}</span>
+                  <span className="font-bold text-orange-500">NT${cartTotal.toFixed(0)}</span>
                 </div>
                 <IOSButton
                   onClick={handleCheckout}
@@ -644,13 +849,30 @@ export function Shop() {
                 <div className="flex gap-2">
                   <Input
                     value={checkoutForm.couponCode}
-                    onChange={(e) =>
-                      setCheckoutForm({ ...checkoutForm, couponCode: e.target.value.toUpperCase() })
-                    }
+                    onChange={(e) => handleCouponChange(e.target.value)}
                     placeholder="輸入優惠券代碼"
                     className="flex-1"
+                    disabled={isValidatingCoupon}
                   />
+                  <IOSButton
+                    onClick={validateCoupon}
+                    disabled={!checkoutForm.couponCode.trim() || isValidatingCoupon}
+                    className="px-4"
+                    variant="outline"
+                  >
+                    {isValidatingCoupon ? '驗證中...' : '套用'}
+                  </IOSButton>
                 </div>
+                {/* 錯誤提示 */}
+                {couponError && (
+                  <p className="text-sm text-red-500 mt-1">{couponError}</p>
+                )}
+                {/* 折扣顯示 */}
+                {couponDiscount > 0 && (
+                  <p className="text-sm text-green-600 mt-1">
+                    已套用折扣 NT${couponDiscount.toFixed(0)}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   輸入優惠碼可享折扣優惠
                 </p>
@@ -676,22 +898,22 @@ export function Shop() {
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>商品金額</span>
-                  <span>NT${cartTotal}</span>
+                  <span>NT${cartTotal.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>運費</span>
                   <span>{cartTotal >= 1000 ? '免運' : 'NT$100'}</span>
                 </div>
-                {checkoutForm.couponCode && (
+                {couponDiscount > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>折扣</span>
-                    <span>-NT$0</span>
+                    <span>-NT${couponDiscount.toFixed(0)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>總計</span>
                   <span className="text-orange-500">
-                    NT${cartTotal >= 1000 ? cartTotal : cartTotal + 100}
+                    NT${(cartTotal >= 1000 ? cartTotal : cartTotal + 100 - couponDiscount).toFixed(0)}
                   </span>
                 </div>
               </div>
@@ -738,6 +960,34 @@ export function Shop() {
             >
               繼續購物
             </IOSButton>
+          </div>
+        </div>
+      )}
+
+      {/* 移除商品確認對話框 */}
+      {removeItemId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative w-full max-w-sm bg-white rounded-xl shadow-xl p-6">
+            <h3 className="text-easy-heading font-bold mb-4 text-center">確認移除</h3>
+            <p className="text-gray-600 mb-6 text-center">
+              確定要從購物車移除此商品嗎？
+            </p>
+            <div className="flex gap-3">
+              <IOSButton
+                onClick={() => setRemoveItemId(null)}
+                className="flex-1"
+                variant="outline"
+              >
+                取消
+              </IOSButton>
+              <IOSButton
+                onClick={() => confirmRemoveItem(removeItemId)}
+                className="flex-1 bg-red-500 hover:bg-red-600"
+              >
+                移除
+              </IOSButton>
+            </div>
           </div>
         </div>
       )}
