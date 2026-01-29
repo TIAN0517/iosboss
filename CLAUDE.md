@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **九九瓦斯行管理系統** (Jiu Jiu Gas Station Management System) - A comprehensive gas station management system with iOS-style mobile UI, designed for local deployment with cloud backup.
 
 **Technology Stack:**
-- **Frontend**: Next.js 14 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui
+- **Frontend**: Next.js 14 (App Router), React 19, TypeScript 5, Tailwind CSS v4, shadcn/ui
 - **UI Framework**: Custom iOS-style components (`ios-*` prefix), Radix UI primitives
 - **Backend**: Next.js API Routes, Prisma ORM
 - **Databases**: PostgreSQL (primary/local), Supabase (cloud backup)
@@ -26,9 +26,12 @@ npm run db:push       # Push schema changes
 npm run db:migrate    # Run migrations
 npm run db:seed       # Seed database
 npm run db:generate   # Generate Prisma client
+npm run db:reset      # Reset database (dev only)
+npm run db:add-historical-attendance  # Add historical attendance records
 
 # Build
 npm run build         # Prisma generate + Next.js build (ignores TypeScript/ESLint errors)
+npm run build:standalone  # Build standalone production bundle
 npm run start         # Run standalone server
 
 # Docker
@@ -53,15 +56,23 @@ docker-compose up     # Start all services
 │   ├── components/
 │   │   ├── ui/               # shadcn/ui + custom iOS components
 │   │   │   ├── ios-*         # iOS-style components (Modal, Sheet, TabBar, etc.)
+│   │   │   ├── Pagination.tsx # Pagination component
 │   │   │   └── *.tsx         # Radix UI components (Dialog, Dropdown, etc.)
 │   │   ├── *Management.tsx   # Feature modules (Customer, Order, Product, etc.)
+│   │   ├── providers/        # Context providers
+│   │   │   └── QueryProvider.tsx  # React Query provider
 │   │   └── AIAssistant.tsx   # AI chat interface
+│   ├── hooks/                # Custom React hooks
+│   │   ├── useApi.ts         # React Query data fetching hooks
+│   │   ├── useToast.ts       # Toast notification hooks
+│   │   └── useFormValidation.ts  # Form validation hooks
 │   ├── lib/
 │   │   ├── database/
 │   │   │   ├── repositories/ # Repository pattern (BaseRepository, CustomerRepository, etc.)
 │   │   │   └── services/     # Business logic (AuditLog, WebhookSync, etc.)
 │   │   ├── integration/      # External system integrations (MSSQL, webhook)
 │   │   ├── prisma.ts         # Prisma client singleton
+│   │   ├── validators.ts     # Zod validation schemas
 │   │   └── *-service.ts      # Various service modules
 │   └── middleware.ts         # JWT auth middleware
 ├── prisma/
@@ -257,6 +268,9 @@ The system has **100+ API endpoints** across two directories. `src/app/api/` is 
 | `/api/schedules` | GET, POST | Schedules |
 | `/api/reports` | GET | Reports |
 | `/api/ecommerce/cart` | GET, POST | Shopping cart |
+| `/api/ecommerce/checkout` | POST | Checkout process |
+| `/api/ecommerce/orders` | GET, POST | Shop orders |
+| `/api/ecommerce/orders/[orderNo]` | GET | Order details |
 | `/api/ecommerce/coupons` | GET, POST | Coupons |
 | `/api/ecommerce/products/reviews` | GET, POST | Product reviews |
 | `/api/ai/chat` | POST | AI chat |
@@ -327,7 +341,19 @@ The app uses custom iOS-style components in `src/components/ui/ios-*`:
 
 7. **Edge Runtime middleware**: JWT_SECRET is duplicated in `src/middleware.ts` because middleware runs in Edge Runtime and cannot access `.env` at runtime. When updating JWT_SECRET, you must update both `.env` AND `src/middleware.ts:11`.
 
+8. **React Query hooks**: Use `src/hooks/useApi.ts` for data fetching. It provides cached queries and automatic refetching.
+
+9. **Toast notifications**: Use `src/hooks/useToast.ts` instead of `alert()` for user feedback.
+
+10. **Form validation**: Use `src/lib/validators.ts` (Zod schemas) and `src/hooks/useFormValidation.ts` for client-side validation.
+
+11. **API pagination**: All list APIs now return `{ data, pagination }` format with `page`, `limit`, `total`, `totalPages`, `hasNextPage`, `hasPrevPage`.
+
+12. **Database transactions**: Always use `db.$transaction()` for operations that modify multiple tables (e.g., inventory updates with transaction logs).
+
 ## Deployment
+
+See **DEPLOYMENT.md** for detailed deployment guide including Cloudflare Tunnel configuration.
 
 **Local Development**:
 ```bash
