@@ -3,12 +3,14 @@
  * 免費微軟語音，非常自然
  */
 
-import { spawn } from 'child_process'
+import { exec } from 'child_process'
 import { promisify } from 'util'
 import fs from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 import os from 'os'
+
+const execAsync = promisify(exec)
 
 const CACHE_DIR = '/tmp/edge-tts-cache'
 const MAX_CACHE_SIZE = 200
@@ -89,27 +91,11 @@ export async function textToSpeech(
   // 執行 edge-tts
   const tempFile = path.join(os.tmpdir(), `tts_${Date.now()}.mp3`)
 
-  await new Promise<void>((resolve, reject) => {
-    const proc = spawn('edge-tts', [
-      '-t', text,
-      '-v', voice,
-      '--rate', rate,
-      '--pitch', pitch,
-      '--write-media', tempFile
-    ])
+  // 使用 execAsync 調用 edge-tts
+  const escapedText = text.replace(/"/g, '\\"')
+  const cmd = `edge-tts -t "${escapedText}" -v "${voice}" --rate "${rate}" --pitch "${pitch}" --write-media "${tempFile}"`
 
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve()
-      } else {
-        reject(new Error(`edge-tts exited with code ${code}`))
-      }
-    })
-
-    proc.on('error', (err) => {
-      reject(err)
-    })
-  })
+  await execAsync(cmd, { timeout: 30000 })
 
   // 讀取並快取
   const audioBuffer = await fs.readFile(tempFile)
