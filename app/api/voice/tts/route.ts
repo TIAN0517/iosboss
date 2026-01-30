@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // 參數
     const voice = body.voice || DEFAULT_VOICE
     const rate = body.rate || '+0%'
-    const pitch = body.pitch || '+0%'
+    const pitch = body.pitch || '+0Hz'
 
     // 優先使用 Edge TTS
     try {

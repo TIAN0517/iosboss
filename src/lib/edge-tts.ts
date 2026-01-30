@@ -63,7 +63,7 @@ export async function textToSpeech(
   text: string,
   voice: string = DEFAULT_VOICE,
   rate: string = '+0%',
-  pitch: string = '+0%'
+  pitch: string = '+0Hz'
 ): Promise<Buffer> {
   // 確保快取目錄
   await ensureCacheDir()
