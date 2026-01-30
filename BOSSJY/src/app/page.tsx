@@ -248,7 +248,7 @@ export default function StoreAutoSearchPage() {
     )
   }
 
-  // 一鍵自動爬取：搜尋 → 提取 → 過濾 → 驗證LINE → 儲存
+  // 一鍵自動爬取：搜尋 → 提取 → 驗證LINE → 儲存（增量儲存，防斷線）
   const autoCrawlAll = async () => {
     if (!searchQuery.trim()) {
       toast({
@@ -286,13 +286,20 @@ export default function StoreAutoSearchPage() {
 
       setSearchResults(searchResult.results || [])
       const results = searchResult.results.slice(0, 15) // 最多處理15個
-      setAutoCrawlProgress({ current: 0, total: results.length, stage: '正在提取店家資訊...' })
 
-      // 步驟 2: 提取所有店家資訊
+      // 步驟 2: 逐個處理店家（提取 + 驗證LINE + 立即儲存）
+      let savedCount = 0
+      let skippedCount = 0
       const extracted: StoreInfo[] = []
-      for (let i = 0; i < results.length; i++) {
-        setAutoCrawlProgress({ current: i + 1, total: results.length, stage: `正在提取 ${i + 1}/${results.length}...` })
 
+      for (let i = 0; i < results.length; i++) {
+        setAutoCrawlProgress({
+          current: i + 1,
+          total: results.length,
+          stage: `處理中 ${i + 1}/${results.length}...`
+        })
+
+        // 2.1: 提取店家資訊
         try {
           const extractResponse = await fetch('/api/extract-from-web', {
             method: 'POST',
@@ -302,7 +309,54 @@ export default function StoreAutoSearchPage() {
           const extractResult = await extractResponse.json()
 
           if (extractResult.success && extractResult.store) {
-            extracted.push(extractResult.store)
+            const store = extractResult.store
+
+            // 2.2: 驗證LINE（如果符合基本條件）
+            if (store.phoneNumber && store.address && store.signboard) {
+              try {
+                const verifyResponse = await fetch('/api/verify-line', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    phoneNumber: store.phoneNumber,
+                    storeName: store.name,
+                  }),
+                })
+                const verifyResult = await verifyResponse.json()
+
+                if (verifyResult.success) {
+                  store.lineActive = verifyResult.lineActive
+                  store.lineVerifiedAt = new Date().toISOString()
+                }
+              } catch (error) {
+                console.error('LINE驗證失敗:', store.name)
+              }
+            }
+
+            // 2.3: 檢查是否符合儲存條件
+            if (isStoreQualified(store)) {
+              // 立即儲存到資料庫（增量儲存，防斷線）
+              try {
+                const saveResponse = await fetch('/api/stores', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(store),
+                })
+
+                if (saveResponse.ok) {
+                  savedCount++
+                  extracted.push(store)
+                  // 更新UI顯示已儲存的店家
+                  setExtractedStores([...extracted])
+                }
+              } catch (error) {
+                console.error('儲存失敗:', store.name)
+              }
+            } else {
+              skippedCount++
+              extracted.push(store)
+              setExtractedStores([...extracted])
+            }
           }
         } catch (error) {
           console.error('提取失敗:', results[i].url)
@@ -311,92 +365,19 @@ export default function StoreAutoSearchPage() {
         await new Promise(resolve => setTimeout(resolve, 200)) // 避免請求過快
       }
 
-      setExtractedStores(extracted)
-
-      // 步驟 3: 過濾只保留符合條件的店家
-      const qualifiedStores = extracted.filter(isStoreQualified)
-      setAutoCrawlProgress({ current: 0, total: qualifiedStores.length, stage: `正在驗證LINE (${qualifiedStores.length}個符合條件)...` })
-
-      // 步驟 4: 驗證LINE
-      for (let i = 0; i < qualifiedStores.length; i++) {
-        const store = qualifiedStores[i]
-        if (store.phoneNumber) {
-          setAutoCrawlProgress({ current: i + 1, total: qualifiedStores.length, stage: `正在驗證LINE ${i + 1}/${qualifiedStores.length}...` })
-
-          try {
-            const verifyResponse = await fetch('/api/verify-line', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                phoneNumber: store.phoneNumber,
-                storeName: store.name,
-              }),
-            })
-            const verifyResult = await verifyResponse.json()
-
-            if (verifyResult.success) {
-              // 更新本地資料
-              const updateIndex = extracted.findIndex(s => s.name === store.name)
-              if (updateIndex !== -1) {
-                extracted[updateIndex] = {
-                  ...extracted[updateIndex],
-                  lineActive: verifyResult.lineActive,
-                  lineVerifiedAt: new Date().toISOString(),
-                }
-              }
-            }
-          } catch (error) {
-            console.error('LINE驗證失敗:', store.name)
-          }
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-
-      setExtractedStores([...extracted])
-
-      // 重新過濾符合條件的店家
-      const finalQualified = extracted.filter(isStoreQualified)
-
-      // 步驟 5: 自動儲存符合條件的店家
-      setAutoCrawlProgress({ current: 0, total: finalQualified.length, stage: '正在儲存店家...' })
-      let savedCount = 0
-      const skippedCount = extracted.length - finalQualified.length
-
-      for (let i = 0; i < finalQualified.length; i++) {
-        const store = finalQualified[i]
-        setAutoCrawlProgress({ current: i + 1, total: finalQualified.length, stage: `正在儲存 ${i + 1}/${finalQualified.length}...` })
-
-        try {
-          const saveResponse = await fetch('/api/stores', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(store),
-          })
-
-          if (saveResponse.ok) {
-            savedCount++
-          }
-        } catch (error) {
-          console.error('儲存失敗:', store.name)
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-
       // 重新載入已儲存的店家
       await loadSavedStores()
 
-      // 步驟 6: 顯示結果摘要
+      // 步驟 3: 顯示結果摘要
       setAutoCrawling(false)
       toast({
         title: '🎉 一鍵自動爬取完成！',
         description: (
           <div className="mt-2 space-y-1">
-            <p>✅ 成功儲存 <strong>{savedCount}</strong> 個符合條件的店家</p>
-            <p>⚠️ 跳過 <strong>{skippedCount}</strong> 個資料不完整的店家</p>
+            <p>已儲存 <strong>{savedCount}</strong> 個符合條件的店家</p>
+            <p>跳過 <strong>{skippedCount}</strong> 個資料不完整的店家</p>
             <p className="text-sm text-slate-400">
-              條件：電話 + 地址 + 招牌照片 + LINE帳號
+              即使中途斷線，已處理的資料也已儲存
             </p>
           </div>
         ),
