@@ -1,0 +1,68 @@
+{
+  "version": 3,
+  "middleware": {
+    "/": {
+      "files": [
+        "server/edge-runtime-webpack.js",
+        "server/src/middleware.js"
+      ],
+      "name": "src/middleware",
+      "page": "/",
+      "matchers": [
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/(\\/?index|\\/?index\\.json))?[\\/#\\?]?$",
+          "originalSource": "/"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/api\\/products(.json)?[\\/#\\?]?$",
+          "originalSource": "/api/products"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/api\\/categories(.json)?[\\/#\\?]?$",
+          "originalSource": "/api/categories"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/api\\/coupons(.json)?[\\/#\\?]?$",
+          "originalSource": "/api/coupons"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/api\\/coupons\\/verify(.json)?[\\/#\\?]?$",
+          "originalSource": "/api/coupons/verify"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/api\\/cart\\/items(.json)?[\\/#\\?]?$",
+          "originalSource": "/api/cart/items"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/api\\/cart\\/clear(.json)?[\\/#\\?]?$",
+          "originalSource": "/api/cart/clear"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/api\\/search(.json)?[\\/#\\?]?$",
+          "originalSource": "/api/search"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/_next(.json)?[\\/#\\?]?$",
+          "originalSource": "/_next"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/favicon(.json)?[\\/#\\?]?$",
+          "originalSource": "/favicon"
+        }
+      ],
+      "wasm": [],
+      "assets": [],
+      "env": {
+        "__NEXT_BUILD_ID": "6BnIfOg5UvkinBHyLrj-9",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "PR8gnckeq0Kzrqp8mXEQS1cYdtX8Awdfn4389jZlNYM=",
+        "__NEXT_PREVIEW_MODE_ID": "90868ba572d160f4fb3349eaeabe83cb",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "575934c369be419283d4d8527632f647119dbc62e2ec5a5a1b53fdf3c8d7cf8f",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "b2405026a05950d8e6835d06355c781777685c4bb892119921c1f36ea13927f9"
+      }
+    }
+  },
+  "functions": {},
+  "sortedMiddleware": [
+    "/"
+  ]
+}

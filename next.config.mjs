@@ -28,6 +28,8 @@ const nextConfig = {
     };
     return config;
   },
+  // 排除子項目目錄，確保每個項目使用自己的配置
+  outputFileTracingRoot: path.join(__dirname, '媽媽ios'),
 };
 
 export default nextConfig;

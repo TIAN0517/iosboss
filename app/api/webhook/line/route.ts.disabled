@@ -22,6 +22,46 @@ const LINE_CONFIG = {
   skipSignatureVerify: process.env.LINE_SKIP_SIGNATURE_VERIFY === 'true',
 }
 
+// 關鍵字觸發配置 - 只有包含這些關鍵字的訊息才會回覆
+const KEYWORD_TRIGGERS = [
+  // 瓦斯相關
+  '瓦斯', '訂瓦斯', '買瓦斯', '要瓦斯', '瓦斯桶', '桶',
+  '4kg', '10kg', '16kg', '20kg', '50kg', '公斤',
+  // 訂單相關
+  '訂單', '查訂單', '我的訂單', '訂購', '下單',
+  // 查詢相關
+  '價格', '多少錢', '價錢', '費用',
+  '庫存', '還有多少', '有沒有貨',
+  // 客服相關
+  '聯絡', '聯繫', '電話', '地址', '營業',
+  // 問候/幫助
+  '你好', '您好', '嗨', 'hi', 'hello',
+  '幫助', '說明', '怎麼用', '?',
+  // 群組指令
+  '任務', '報表', '庫存', '營收', '業績',
+  // 綁定
+  '綁定', '會員', '我是新',
+]
+
+// 檢查訊息是否包含觸發關鍵字
+function containsTriggerKeyword(message: string): boolean {
+  const lowerMessage = message.toLowerCase().trim()
+
+  // 檢查每個關鍵字
+  for (const keyword of KEYWORD_TRIGGERS) {
+    if (lowerMessage.includes(keyword.toLowerCase())) {
+      return true
+    }
+  }
+
+  // 檢查是否為指令格式
+  if (message.startsWith('/') || message.startsWith('！')) {
+    return true
+  }
+
+  return false
+}
+
 // 驗證 LINE 簽名
 function verifyLineSignature(body: string, signature: string): boolean {
   // 如果設置了跳過驗證，直接返回 true
@@ -194,7 +234,26 @@ async function handleLineEvent(event: any, logContext: any) {
   const messageType = message?.type
   const messageText = messageType === 'text' ? message.text : ''
 
-  logger.info(LogCategory.BUSINESS, 'LINE message received (async)', {
+  // 如果是文字訊息但沒有觸發關鍵字，則不處理（只記錄不回覆）
+  if (messageType === 'text' && !containsTriggerKeyword(messageText)) {
+    logger.info(LogCategory.BUSINESS, 'LINE message ignored - no keyword trigger', {
+      ...logContext.get(),
+      userId,
+      groupId,
+      messageText: messageText?.substring(0, 50),
+    })
+    // 仍然保存訊息記錄，但不生成回覆
+    await saveLineMessage({
+      lineGroupId: groupId,
+      userId,
+      messageType: messageType || 'unknown',
+      content: messageText || JSON.stringify(message),
+      timestamp: timestamp ? new Date(timestamp) : new Date(),
+    })
+    return
+  }
+
+  logger.info(LogCategory.BUSINESS, 'LINE message received (keyword trigger matched)', {
     ...logContext.get(),
     userId,
     groupId,

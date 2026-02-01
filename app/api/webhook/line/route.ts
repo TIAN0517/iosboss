@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || ''
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || ''
 const LINE_BOT_USER_ID = process.env.LINE_USER_ID || ''
 
 // 群組權限配置
@@ -46,17 +45,31 @@ interface FlexMessage {
   contents: any
 }
 
+async function getLineToken(): string {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN || ''
+  console.log(`[DEBUG] Token retrieved: ${token.substring(0, 10)}... (length: ${token.length})`)
+  return token
+}
+
 async function replyToLine(replyToken: string, messages: any[]): Promise<boolean> {
-  if (!LINE_CHANNEL_ACCESS_TOKEN) return false
+  const token = await getLineToken()
+  if (!token) {
+    console.error('[LINE] Error: Missing LINE_CHANNEL_ACCESS_TOKEN')
+    return false
+  }
   try {
+    const authHeader = `Bearer ${token}`
+    console.log(`[DEBUG] Authorization: ${authHeader.substring(0, 30)}...`)
     const response = await fetch('https://api.line.me/v2/bot/message/reply', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+        'Authorization': authHeader,
       },
       body: JSON.stringify({ replyToken, messages }),
     })
+    const responseText = await response.text()
+    console.log(`[LINE] Reply API response: ${response.status} - ${responseText}`)
     return response.ok
   } catch (error) {
     console.error('[LINE] Reply error:', error)
@@ -65,13 +78,14 @@ async function replyToLine(replyToken: string, messages: any[]): Promise<boolean
 }
 
 async function pushMessage(userId: string, messages: any[]): Promise<boolean> {
-  if (!LINE_CHANNEL_ACCESS_TOKEN) return false
+  const token = await getLineToken()
+  if (!token) return false
   try {
     const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ to: userId, messages }),
     })
@@ -350,13 +364,25 @@ function generateResponse(userMessage: string, permission: any): { text: string;
 
   // 價格相關
   if (lowerMsg.match(/價格|多少錢|費用|price/)) {
-    text = '💰 九九瓦斯行 - 價格參考\n\n'
-    text += '• 4kg 桶裝瓦斯：NT$ 220\n'
-    text += '• 10kg 桶裝瓦斯：NT$ 360\n'
-    text += '• 16kg 桶裝瓦斯：NT$ 550\n'
-    text += '• 20kg 標準桶裝瓦斯：NT$ 620\n'
-    text += '• 20kg 高級桶裝瓦斯：NT$ 730\n\n'
-    text += '（實際價格以當日為準，歡迎來電確認）'
+    text = `💰 瓦斯價格表 🔥
+
+📍 美崙站 (花蓮市中美路二街79號)
+📞 (03) 822-2106
+├ 50公斤：NT$1,850
+├ 20公斤：NT$740
+├ 16公斤：NT$630
+├ 10公斤：NT$450
+└ 4公斤：NT$250
+
+📍 吉安站 (花蓮縣吉安鄉南昌路25號)
+📞 (03) 853-3999
+├ 20公斤：NT$720
+├ 16公斤：NT$610
+├ 10公斤：NT$430
+└ 4公斤：NT$210
+
+💡 價格僅供參考，實際價格以現場為準
+🌐 更多商品：https://gas.tiankai.it.com`
   }
   // 庫存相關
   else if (lowerMsg.match(/庫存|庫存查詢|inventory|stock/)) {
@@ -364,25 +390,39 @@ function generateResponse(userMessage: string, permission: any): { text: string;
   }
   // 聯絡我們
   else if (lowerMsg.match(/聯絡|聯繫|contact|電話/)) {
-    text = '📞 聯繫九九瓦斯行\n\n'
-    text += '電話：請致電各分店\n'
-    text += '營業時間：08:00 - 20:00\n\n'
-    text += '歡迎使用 LINE 線上訂購服務！'
+    text = `📞 聯繫九九瓦斯行
+
+📍 美崙站：花蓮市中美路二街79號 (03) 822-2106
+📍 吉安站：花蓮縣吉安鄉南昌路25號 (03) 853-3999
+
+⏰ 營業時間：08:00-20:00
+🌐 瓦斯商城：https://gas.tiankai.it.com`
   }
   // 幫助
   else if (lowerMsg.match(/幫助|說明|怎麼用|help/)) {
-    text = `🙋 九九瓦斯行客服 - ${permission.name}版\n\n`
-    text += '可用指令：\n'
-    text += '• 「我要訂瓦斯」- 訂購瓦斯\n'
-    text += '• 「瓦斯價格」- 查詢價格\n'
-    text += '• 「商品目錄」- 瀏覽商品\n'
-    text += '• 「庫存」- 庫存查詢\n'
-    text += '• 「聯絡我們」- 聯繫方式'
+    text = `🙋 九九瓦斯行客服 - ${permission.name}版
+
+📋 可用指令：
+• 「我要訂瓦斯」- 訂購瓦斯
+• 「瓦斯價格」- 查詢價格
+• 「商品目錄」- 瀏覽商品
+• 「庫存」- 庫存查詢
+• 「聯絡我們」- 聯繫方式
+
+🌐 瓦斯商城：https://gas.tiankai.it.com`
   }
-  // 預設
+  // 預設 - 顯示幫助選單
   else {
-    const responses = ['收到！感謝您的留言。', '您好！我們會盡快回覆您。', '感謝您的詢問，請稍候。', '已收到您的訊息！']
-    text = responses[Math.floor(Math.random() * responses.length)]
+    text = `🙋 您好！我是九九瓦斯行客服機器人
+
+📋 可用指令：
+• 「瓦斯價格」- 查詢瓦斯價格
+• 「我要訂瓦斯」- 訂購瓦斯
+• 「商品目錄」- 瀏覽商品
+• 「聯絡我們」- 聯繫方式
+• 「幫助」- 顯示說明
+
+🌐 瓦斯商城：https://gas.tiankai.it.com`
   }
 
   return { text, flex, quickReplies }
