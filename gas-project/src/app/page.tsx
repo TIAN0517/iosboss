@@ -36,10 +36,10 @@ interface Category {
 // 產品名稱到圖片檔案的映射
 const IMAGE_MAP: Record<string, string> = {
   // 瓦斯桶
-  '4kg': 'gas-cylinder-4kg.png',
+  '4kg': 'gas-cylinder-5kg.png',
   '5kg': 'gas-cylinder-5kg.png',
   '8kg': 'gas-cylinder-8kg.png',
-  '10kg': 'gas-cylinder-10kg.png',
+  '10kg': 'gas-cylinder-12kg.png',
   '12kg': 'gas-cylinder-12kg.png',
   '15kg': 'gas-cylinder-16kg.png',
   '16kg': 'gas-cylinder-16kg.png',
@@ -48,8 +48,11 @@ const IMAGE_MAP: Record<string, string> = {
   '公斤': 'gas-cylinder-20kg.png',
   '桶裝瓦斯': 'gas-cylinder-20kg.png',
   '瓦斯桶': 'gas-cylinder-20kg.png',
+  '鋁合金瓦斯桶': 'aluminum-gas-cylinder.png',
+  '複合材質瓦斯桶': 'composite-gas-cylinder.png',
+  '專業級瓦斯桶': 'pro-gas-cylinder.png',
 
-  // 瓦斯爐
+  // 瓦斯爐 - 林內/櫻花/莊頭北等品牌
   '瓦斯爐': 'gas-stove-2-burner.png',
   '三口': 'gas-stove-3-burner.png',
   '四口': 'gas-stove-4-burner.png',
@@ -61,8 +64,23 @@ const IMAGE_MAP: Record<string, string> = {
   '傳統瓦斯爐': 'gas-stove-2-burner.png',
   '不鏽鋼雙口爐': 'gas-stove-ss-2-burner.png',
   '商用瓦斯爐': 'gas-stove-commercial.png',
+  '桌上型瓦斯爐': 'gas-stove-desktop.png',
+  '內焰瓦斯爐': 'gas-stove-2-burner.png',
+  '玻璃瓦斯爐': 'gas-stove-ceramic.png',
+  '安全爐': 'gas-stove-simple.png',
+  '智慧瓦斯爐': 'gas-stove-smart.png',
+  '智慧感應': 'gas-stove-smart.png',
+  '紅外線瓦斯爐': 'gas-stove-infrared.png',
+  '豪華瓦斯爐': 'gas-stove-luxury.png',
+  '防爆瓦斯爐': 'gas-stove-explosion-proof.png',
+  '雙面瓦斯爐': 'gas-stove-double-side.png',
+  '簡易瓦斯爐': 'gas-stove-simple.png',
+  '林內': 'gas-stove-2-burner.png',
+  '櫻花': 'gas-stove-2-burner.png',
+  '莊頭北': 'gas-stove-2-burner.png',
+  '二口': 'gas-stove-2-burner.png',
 
-  // 熱水器
+  // 熱水器 - 林內/海爾等品牌
   '熱水器': 'instant-gas-water-heater.png',
   '瞬熱': 'instant-gas-water-heater.png',
   '儲熱': 'water-heater-storage.png',
@@ -70,6 +88,22 @@ const IMAGE_MAP: Record<string, string> = {
   '智能': 'smart-water-heater.png',
   '太陽能': 'solar-water-heater.png',
   '熱泵': 'heat-pump-water-heater.png',
+  '屋外型': 'instant-gas-water-heater.png',
+  '屋內型': 'water-heater-storage.png',
+  '強排': 'instant-gas-water-heater.png',
+  '大廈型': 'commercial-water-heater.png',
+  '10L': 'water-heater-gas-10l.png',
+  '12L': 'instant-gas-water-heater.png',
+  '13L': 'instant-gas-water-heater.png',
+  '16L': 'instant-gas-water-heater.png',
+  '20L': 'water-heater-storage-20l.png',
+  '24L': 'commercial-water-heater.png',
+  '8L': 'water-heater-gas-8l.png',
+  '6L': 'water-heater-instant-6l.png',
+  '20加侖': 'water-heater-storage-20l.png',
+  '60加侖': 'water-heater-storage-60l.png',
+  '林內': 'instant-gas-water-heater.png',
+  '海爾': 'instant-gas-water-heater.png',
 
   // 卡式爐/罐
   '卡式爐': 'cartridge-stove.png',
@@ -110,7 +144,7 @@ const IMAGE_MAP: Record<string, string> = {
   '閥門': 'gas-valve.png',
   '接頭': 'gas-quick-connector.png',
   'L型彎頭': 'l-elbow-fitting.png',
-  'T型接頭': 't-fitting.png',
+  'T型接頭': 'gas-t-fitting.png',
   '四通接頭': '4-way-fitting.png',
   '水管接頭': 'hose-connector-set.png',
 
@@ -148,7 +182,8 @@ function getProductImageUrl(productName: string, dbImageUrl: string | null): str
     }
   }
 
-  return null
+  // 預設圖片 - 使用瓦斯爐作為預設
+  return '/products/gas-stove-2-burner.png'
 }
 
 export default function Home() {
