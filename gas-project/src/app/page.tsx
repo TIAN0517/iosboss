@@ -200,8 +200,19 @@ export default function Home() {
   const featuredProducts = products.filter(p => p.featured);
 
   // Filter products by category and search
+  // Use category name matching since category IDs don't match between API and products
   const filteredProducts = selectedCategory
-    ? products.filter((p) => p.categoryId === selectedCategory)
+    ? products.filter((p) => {
+        const category = categories.find(c => c.id === selectedCategory);
+        if (!category) return false;
+        // Match by category name in product name or find related products
+        const categoryName = category.name.toLowerCase();
+        const productName = p.name.toLowerCase();
+        return productName.includes(categoryName) ||
+               categoryName.includes('爐') && (productName.includes('爐') || productName.includes('stove')) ||
+               categoryName.includes('熱水') && (productName.includes('熱水') || productName.includes('heater')) ||
+               categoryName.includes('配件') && !productName.includes('爐') && !productName.includes('熱水') && !productName.includes('瓦斯桶') && !productName.includes('桶');
+      })
     : products;
 
   // Apply search filter
@@ -587,7 +598,15 @@ export default function Home() {
                   全部商品 ({products.length})
                 </Button>
                 {categories.map((category) => {
-                  const count = products.filter(p => p.categoryId === category.id).length;
+                  // Count products matching this category
+                  const categoryName = category.name.toLowerCase();
+                  const count = products.filter(p => {
+                    const productName = p.name.toLowerCase();
+                    return productName.includes(categoryName) ||
+                           categoryName.includes('爐') && (productName.includes('爐') || productName.includes('stove')) ||
+                           categoryName.includes('熱水') && (productName.includes('熱水') || productName.includes('heater')) ||
+                           categoryName.includes('配件') && !productName.includes('爐') && !productName.includes('熱水') && !productName.includes('瓦斯桶') && !productName.includes('桶');
+                  }).length;
                   return (
                     <Button
                       key={category.id}
