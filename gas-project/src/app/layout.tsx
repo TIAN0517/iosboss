@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   keywords: ["瓦斯器具", "瓦斯爐", "熱水器", "瓦斯桶", "花蓮瓦斯", "花蓮九九瓦斯行", "帝皇瓦斯行", "高銘瓦斯行"],
   authors: [{ name: "瓦斯器具商城" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/favicon.ico",
+    appleTouchIcon: "/favicon.ico",
   },
   openGraph: {
     title: "瓦斯器具商城 - 花蓮專業瓦斯器具",
