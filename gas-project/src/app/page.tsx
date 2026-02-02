@@ -200,21 +200,30 @@ export default function Home() {
   }, []);
 
   const fetchData = async () => {
+    console.log('開始載入數據...');
     try {
+      console.log('正在請求 API...');
       const [productsRes, categoriesRes] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/categories'),
       ]);
 
+      console.log('Products response ok:', productsRes.ok);
+      console.log('Categories response ok:', categoriesRes.ok);
+
       if (productsRes.ok && categoriesRes.ok) {
         const productsData = await productsRes.json();
         const categoriesData = await categoriesRes.json();
+        console.log('載入成功:', productsData.length, '產品,', categoriesData.length, '分類');
         setProducts(productsData);
         setCategories(categoriesData);
+      } else {
+        console.error('API 響應錯誤');
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
+      console.log('載入完成，關閉 loading...');
       setLoading(false);
     }
   };
