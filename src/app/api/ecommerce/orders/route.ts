@@ -6,6 +6,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
+// 生成訂單編號
+function generateOrderNo(): string {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+  return `SHOP${year}${month}${day}${random}`
+}
+
 // 查詢參數驗證
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -13,6 +23,181 @@ const querySchema = z.object({
   status: z.string().optional(),
   userId: z.string().optional(),
 })
+
+// 創建訂單請求驗證
+const createOrderSchema = z.object({
+  customerName: z.string().min(1, '姓名為必填'),
+  phone: z.string().min(1, '電話為必填'),
+  address: z.string().min(1, '地址為必填'),
+  note: z.string().optional(),
+  couponCode: z.string().optional(),
+  items: z.array(z.object({
+    productId: z.string(),
+    name: z.string(),
+    price: z.number(),
+    quantity: z.number().min(1),
+    imageUrl: z.string().optional(),
+  })).min(1, '購物車不能為空'),
+})
+
+/**
+ * POST /api/ecommerce/orders
+ * 創建商城訂單
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    // 驗證請求資料
+    const validation = createOrderSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.errors[0]?.message || '輸入資料有誤' },
+        { status: 400 }
+      )
+    }
+
+    const { customerName, phone, address, note, couponCode, items } = validation.data
+
+    // 計算訂單金額
+    let subtotal = 0
+    for (const item of items) {
+      subtotal += item.price * item.quantity
+    }
+
+    let discount = 0
+    let appliedCoupon: any = null
+
+    // 驗證優惠券
+    if (couponCode) {
+      const coupon = await db.coupon.findUnique({
+        where: { code: couponCode.toUpperCase() },
+      })
+
+      if (!coupon) {
+        return NextResponse.json({ error: '優惠券不存在', valid: false }, { status: 400 })
+      }
+
+      if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+        return NextResponse.json({ error: '優惠券已過期', valid: false }, { status: 400 })
+      }
+
+      if (coupon.minOrder && subtotal < coupon.minOrder) {
+        return NextResponse.json(
+          { error: `消費滿 NT$ ${coupon.minOrder} 才能使用此優惠券`, valid: false },
+          { status: 400 }
+        )
+      }
+
+      // 計算折扣
+      if (coupon.type === 'percentage') {
+        discount = Math.round(subtotal * (coupon.value / 100))
+      } else {
+        discount = coupon.value
+      }
+
+      // 標記優惠券已使用
+      await db.coupon.update({
+        where: { id: coupon.id },
+        data: { usedCount: { increment: 1 } },
+      })
+
+      appliedCoupon = coupon
+    }
+
+    // 計算運費 (滿 NT$2000 免運)
+    const deliveryFee = subtotal >= 2000 ? 0 : 100
+
+    const total = subtotal - discount + deliveryFee
+
+    // 生成訂單編號
+    const orderNo = generateOrderNo()
+
+    // 創建訂單
+    const order = await db.$transaction(async (tx) => {
+      // 創建訂單
+      const shopOrder = await tx.shopOrder.create({
+        data: {
+          orderNo,
+          guestName: customerName,
+          guestPhone: phone,
+          guestEmail: null,
+          guestAddress: address,
+          subtotal,
+          discount,
+          deliveryFee,
+          total,
+          couponCode: couponCode?.toUpperCase(),
+          status: 'pending',
+          note: note || null,
+          contactName: customerName,
+          contactPhone: phone,
+          deliveryAddress: address,
+          items: {
+            create: items.map(item => ({
+              productId: item.productId,
+              productName: item.name,
+              productImage: item.imageUrl || null,
+              quantity: item.quantity,
+              unitPrice: item.price,
+              subtotal: item.price * item.quantity,
+            })),
+          },
+        },
+        include: { items: true },
+      })
+
+      // 扣減庫存
+      for (const item of items) {
+        const inventory = await tx.inventory.findUnique({
+          where: { productId: item.productId },
+        })
+
+        if (inventory) {
+          const newQuantity = Math.max(0, inventory.quantity - item.quantity)
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: newQuantity },
+          })
+
+          // 記錄庫存變動
+          await tx.inventoryTransaction.create({
+            data: {
+              productId: item.productId,
+              type: 'sale',
+              quantity: -item.quantity,
+              quantityBefore: inventory.quantity,
+              quantityAfter: newQuantity,
+              reason: `商城訂單 ${orderNo}`,
+            },
+          })
+        }
+
+        // 增加銷量
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { sales: { increment: item.quantity } },
+        })
+      }
+
+      return shopOrder
+    })
+
+    return NextResponse.json({
+      orderNumber: order.orderNo,
+      total: order.total,
+      status: order.status,
+      message: '訂單創建成功',
+    }, { status: 201 })
+
+  } catch (error) {
+    console.error('創建訂單失敗:', error)
+    return NextResponse.json(
+      { error: '創建訂單失敗，請稍後再試' },
+      { status: 500 }
+    )
+  }
+}
 
 /**
  * GET /api/ecommerce/orders

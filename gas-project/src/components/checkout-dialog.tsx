@@ -44,14 +44,14 @@ export function CheckoutDialog({ open, onOpenChange }: CheckoutDialogProps) {
 
     setVerifyingCoupon(true);
     try {
-      const response = await fetch('/api/coupons/verify', {
+      const response = await fetch('/api/ecommerce/coupons', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           code: couponCode,
-          amount: getTotalPrice(),
+          cartAmount: getTotalPrice(),
         }),
       });
 
@@ -106,15 +106,24 @@ export function CheckoutDialog({ open, onOpenChange }: CheckoutDialogProps) {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/orders', {
+      const response = await fetch('/api/ecommerce/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
-          items,
+          customerName: formData.customerName,
+          phone: formData.phone,
+          address: formData.address,
+          note: formData.note,
           couponCode: appliedCoupon?.code,
+          items: items.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            imageUrl: item.imageUrl,
+          })),
         }),
       });
 
@@ -122,11 +131,11 @@ export function CheckoutDialog({ open, onOpenChange }: CheckoutDialogProps) {
         throw new Error('Failed to create order');
       }
 
-      const order = await response.json();
+      const orderResult = await response.json();
 
       toast({
         title: '訂單建立成功！',
-        description: `訂單編號：${order.orderNumber}${appliedCoupon ? '（已使用優惠券）' : ''}`,
+        description: `訂單編號：${orderResult.orderNumber}${appliedCoupon ? '（已使用優惠券）' : ''}`,
       });
 
       clearCart();

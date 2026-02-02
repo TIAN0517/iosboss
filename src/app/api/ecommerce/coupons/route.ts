@@ -16,8 +16,7 @@ export async function GET(request: NextRequest) {
     const coupons = await db.coupon.findMany({
       where: {
         isActive: true,
-        validFrom: { lte: now },
-        validTo: { gte: now },
+        expiresAt: { gte: now },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/ecommerce/coupons/validate
+ * POST /api/ecommerce/coupons
  * 驗證優惠券
  */
 export async function POST(request: NextRequest) {
@@ -56,11 +55,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ valid: false, error: '優惠券已停用' }, { status: 400 })
     }
 
-    if (coupon.validFrom > now) {
-      return NextResponse.json({ valid: false, error: '優惠券尚未生效' }, { status: 400 })
-    }
-
-    if (coupon.validTo < now) {
+    if (coupon.expiresAt && coupon.expiresAt < now) {
       return NextResponse.json({ valid: false, error: '優惠券已過期' }, { status: 400 })
     }
 
@@ -68,29 +63,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ valid: false, error: '優惠券使用次數已達上限' }, { status: 400 })
     }
 
-    if (coupon.minAmount && cartAmount < coupon.minAmount) {
+    if (coupon.minOrder && cartAmount < coupon.minOrder) {
       return NextResponse.json({
         valid: false,
-        error: `最低消費金額為 NT$${coupon.minAmount.toLocaleString()}`
+        error: `最低消費金額為 NT$${coupon.minOrder.toLocaleString()}`
       }, { status: 400 })
     }
 
     // 計算折扣金額
     let discountAmount = 0
-    if (coupon.discountType === 'percentage') {
-      discountAmount = cartAmount * (coupon.discountValue / 100)
+    if (coupon.type === 'percentage') {
+      discountAmount = cartAmount * (coupon.value / 100)
     } else {
-      discountAmount = coupon.discountValue
+      discountAmount = coupon.value
     }
 
     // 限制最高折扣金額
-    if (coupon.maxAmount && discountAmount > coupon.maxAmount) {
-      discountAmount = coupon.maxAmount
+    if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+      discountAmount = coupon.maxDiscount
     }
 
     return NextResponse.json({
       valid: true,
-      coupon,
+      coupon: {
+        ...coupon,
+        discountType: coupon.type,
+        discountValue: coupon.value,
+        minAmount: coupon.minOrder,
+        maxAmount: coupon.maxDiscount,
+      },
       discountAmount: Math.round(discountAmount * 100) / 100,
     })
   } catch (error) {
