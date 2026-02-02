@@ -81,22 +81,23 @@ export default function OrdersPage() {
   const stats = {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
-    confirmed: orders.filter(o => o.status === 'confirmed').length,
+    paid: orders.filter(o => o.status === 'paid').length,
+    processing: orders.filter(o => o.status === 'processing').length,
     shipped: orders.filter(o => o.status === 'shipped').length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
-    cancelled: orders.filter(o => o.status === 'cancelled').length,
+    completed: orders.filter(o => o.status === 'completed').length,
     totalAmount: orders.reduce((sum, o) => sum + o.totalAmount, 0),
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig: any = {
-      pending: { variant: 'secondary' as const, label: '待確認' },
-      confirmed: { variant: 'default' as const, label: '已確認' },
+      pending: { variant: 'secondary' as const, label: '待付款' },
+      paid: { variant: 'default' as const, label: '已付款' },
+      processing: { variant: 'default' as const, label: '處理中' },
       shipped: { variant: 'default' as const, label: '已發貨' },
-      delivered: { variant: 'default' as const, label: '已送達' },
+      completed: { variant: 'default' as const, label: '已完成' },
       cancelled: { variant: 'destructive' as const, label: '已取消' },
     };
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const config = statusConfig[status as keyof typeof statusConfig] || { variant: 'secondary' as const, label: status };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -110,16 +111,15 @@ export default function OrdersPage() {
   };
 
   const handleShipOrder = async () => {
-    if (!shippingDialog || !shippingTracking || !shippingCarrier) return;
+    if (!shippingDialog || !shippingTracking) return;
 
     try {
-      const response = await fetch('/api/admin/orders/ship', {
-        method: 'POST',
+      const response = await fetch('/api/admin/orders', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: shippingDialog.id,
-          trackingNo: shippingTracking,
-          carrier: shippingCarrier,
+          orderNo: shippingDialog.orderNumber,
+          status: 'shipped',
         }),
       });
 
@@ -139,10 +139,13 @@ export default function OrdersPage() {
     if (!cancelDialog) return;
 
     try {
-      const response = await fetch('/api/admin/orders/cancel', {
-        method: 'POST',
+      const response = await fetch('/api/admin/orders', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: cancelDialog.id }),
+        body: JSON.stringify({
+          orderNo: cancelDialog.orderNumber,
+          status: 'cancelled',
+        }),
       });
 
       if (response.ok) {
@@ -159,13 +162,12 @@ export default function OrdersPage() {
     if (!refundDialog || !refundReason || refundAmount <= 0) return;
 
     try {
-      const response = await fetch('/api/admin/orders/refund', {
-        method: 'POST',
+      const response = await fetch('/api/admin/orders', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: refundDialog.id,
-          amount: refundAmount,
-          reason: refundReason,
+          orderNo: refundDialog.orderNumber,
+          status: 'cancelled',
         }),
       });
 
@@ -250,11 +252,15 @@ export default function OrdersPage() {
           <TabsList>
             <TabsTrigger value="list">
               <Package className="h-4 w-4 mr-2" />
-              訂單列表
+              全部 ({stats.total})
             </TabsTrigger>
             <TabsTrigger value="pending">
               <Clock className="h-4 w-4 mr-2" />
-              待處理 ({stats.pending})
+              待付款 ({stats.pending})
+            </TabsTrigger>
+            <TabsTrigger value="processing">
+              <Package className="h-4 w-4 mr-2" />
+              處理中 ({stats.processing})
             </TabsTrigger>
             <TabsTrigger value="shipped">
               <Truck className="h-4 w-4 mr-2" />
@@ -316,22 +322,14 @@ export default function OrdersPage() {
                               <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)}>
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {order.status === 'confirmed' && (
+                              {(order.status === 'paid' || order.status === 'processing') && (
                                 <Button variant="ghost" size="sm" onClick={() => setShippingDialog(order)}>
                                   <Truck className="h-4 w-4" />
                                 </Button>
                               )}
-                              {(order.status === 'pending' || order.status === 'confirmed') && (
+                              {(order.status === 'pending' || order.status === 'paid' || order.status === 'processing') && (
                                 <Button variant="ghost" size="sm" onClick={() => setCancelDialog(order)} className="text-red-500">
                                   <X className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {order.paymentStatus === 'paid' && (
-                                <Button variant="ghost" size="sm" onClick={() => {
-                                  setRefundDialog(order);
-                                  setRefundAmount(order.totalAmount);
-                                }}>
-                                  <RotateCcw className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>

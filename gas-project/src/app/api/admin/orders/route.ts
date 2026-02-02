@@ -15,9 +15,11 @@ export async function GET(request: Request) {
 
     if (search) {
       where.OR = [
-        { orderNumber: { contains: search, mode: 'insensitive' } },
-        { customerName: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search } },
+        { orderNo: { contains: search, mode: 'insensitive' } },
+        { guestName: { contains: search, mode: 'insensitive' } },
+        { guestPhone: { contains: search } },
+        { contactName: { contains: search, mode: 'insensitive' } },
+        { contactPhone: { contains: search } },
       ];
     }
 
@@ -26,21 +28,43 @@ export async function GET(request: Request) {
     }
 
     const [orders, total] = await Promise.all([
-      db.order.findMany({
+      db.shopOrder.findMany({
         where,
         include: {
           items: true,
-          coupons: true,
         },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      db.order.count({ where }),
+      db.shopOrder.count({ where }),
     ]);
 
+    // 格式化訂單資料符合前端格式
+    const formattedOrders = orders.map(order => ({
+      id: order.id,
+      orderNumber: order.orderNo,
+      customerName: order.guestName || order.contactName || '訪客',
+      phone: order.guestPhone || order.contactPhone || '',
+      address: order.deliveryAddress || order.guestAddress || '',
+      totalAmount: order.total,
+      status: order.status,
+      paymentStatus: order.paymentAt ? 'paid' : 'unpaid',
+      paymentMethod: order.paymentMethod,
+      note: order.note,
+      createdAt: order.createdAt,
+      items: order.items.map(item => ({
+        id: item.id,
+        productId: item.productId,
+        name: item.productName,
+        imageUrl: item.productImage,
+        quantity: item.quantity,
+        price: item.unitPrice,
+      })),
+    }));
+
     return NextResponse.json({
-      orders,
+      orders: formattedOrders,
       pagination: {
         page,
         limit,
@@ -49,7 +73,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Failed to fetch orders:', error);
+    console.error('Failed to fetch shop orders:', error);
     return NextResponse.json(
       { error: 'Failed to fetch orders' },
       { status: 500 }
@@ -60,13 +84,18 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, ...updateData } = body;
+    const { orderNo, status } = body;
 
-    const order = await db.order.update({
-      where: { id },
+    if (!orderNo) {
+      return NextResponse.json({ error: '訂單編號必填' }, { status: 400 });
+    }
+
+    const order = await db.shopOrder.update({
+      where: { orderNo },
       data: {
-        ...updateData,
-        updatedAt: new Date(),
+        status,
+        ...(status === 'shipped' ? { shippedAt: new Date() } : {}),
+        ...(status === 'completed' ? { completedAt: new Date() } : {}),
       },
     });
 
