@@ -208,20 +208,44 @@ export default function Home() {
         fetch('/api/categories'),
       ]);
 
-      console.log('Products response ok:', productsRes.ok);
-      console.log('Categories response ok:', categoriesRes.ok);
+      console.log('Products response status:', productsRes.status);
+      console.log('Categories response status:', categoriesRes.status);
+
+      if (!productsRes.ok) {
+        const productsError = await productsRes.text();
+        console.error('Products API error:', productsError);
+      }
+
+      if (!categoriesRes.ok) {
+        const categoriesError = await categoriesRes.text();
+        console.error('Categories API error:', categoriesError);
+      }
 
       if (productsRes.ok && categoriesRes.ok) {
         const productsData = await productsRes.json();
         const categoriesData = await categoriesRes.json();
         console.log('載入成功:', productsData.length, '產品,', categoriesData.length, '分類');
-        setProducts(productsData);
-        setCategories(categoriesData);
+        console.log('Products 類型:', typeof productsData, Array.isArray(productsData));
+        console.log('Categories 類型:', typeof categoriesData, Array.isArray(categoriesData));
+        setProducts(Array.isArray(productsData) ? productsData : []);
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
       } else {
         console.error('API 響應錯誤');
+        // Try to load at least products
+        try {
+          const productsData = await productsRes.json();
+          if (Array.isArray(productsData)) {
+            setProducts(productsData);
+            console.log('僅載入產品:', productsData.length);
+          }
+        } catch (e) {
+          console.error('無法載入產品:', e);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      console.error('錯誤類型:', error.constructor.name);
+      console.error('錯誤訊息:', error.message);
     } finally {
       console.log('載入完成，關閉 loading...');
       setLoading(false);

@@ -6,8 +6,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Disable standalone output to use next start instead
-  // output: "standalone",
 };
 
 export default nextConfig;
